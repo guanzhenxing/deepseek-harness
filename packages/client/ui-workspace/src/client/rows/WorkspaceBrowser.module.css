@@ -33,24 +33,6 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.disclosureButton {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 28px;
-  border: none;
-  padding: 0;
-  background: transparent;
-  color: var(--dsw-alias-label-tertiary);
-  cursor: pointer;
-}
-
-.disclosureButton:hover {
-  color: var(--dsw-alias-label-primary);
-}
-
 /* Section header: title, an inline search control, and the two trailing
    actions. Expanding search collapses the action cluster and takes its room. */
 .sectionHeader {
@@ -304,11 +286,6 @@
   /* The list remains the scroll clip. This seat stays visible so the
      absolutely positioned first-boundary marker can occupy the header gap. */
   overflow: visible;
-}
-
-.listAreaCollapsed {
-  flex: 0 0 auto;
-  overflow: hidden;
 }
 
 .rail .listArea {
