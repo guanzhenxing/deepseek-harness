@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 This package provides the shell layout of the Web GUI: a three-column AppFrame with resizable sidebar and details panels, a concession chain that shrinks the details column and then auto-closes it when space runs out, and the `ctx.layout` panel-geometry service other plugins call to open or close the details column. It also seats the theme presenter, which projects the resolved color scheme, alias tokens, content font size, and `theme-color` metadata onto the document. Choose it for the standard window chrome; panel geometry is transient and resets on reload.
 
+Without an active work area, AppFrame keeps its ordinary sidebar / conversation / details composition; the frame's one `register()` call also declares root-list `shell.workArea` beside the built-in children. `ctx.layout.openWorkArea(id)` selects exactly one registered id and renders that contribution in the middle column beside the single native conversation companion; optional `conversationVisible: false` starts it hidden. `setWorkAreaConversationVisible()` hides or restores the companion, and hiding unmounts both the conversation and details trees rather than leaving an inactive duplicate alive. `closeWorkArea(id)` is id-guarded, and unloading the selected slot contribution clears it as well.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)
@@ -75,6 +77,7 @@ These limits define the current layout behavior. They are current package constr
 
 - **Panel geometry is transient** — reload restores the sidebar default and details closed; switching between distinct Session ids also closes details and forgets its dragged width, while unselected surfaces render details at zero width without modifying geometry.
 - **Concession-chain auto-close derives a zero width without touching the preferred width** — the panel restores itself when the window widens; consumers must not read the stored details width as the rendered truth.
+- **Work-area selection is transient** — a work area must keep its registered id alive while selected; reload starts in the ordinary shell and a hidden companion remounts with fresh local UI state.
 - **No scroll anchoring during squeeze reflow** — layout changes may move the reader's viewport.
 
 <a id="dev-note"></a>
