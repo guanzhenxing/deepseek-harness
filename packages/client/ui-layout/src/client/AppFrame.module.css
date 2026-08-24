@@ -29,11 +29,11 @@
   border-right: 1px solid var(--dsw-alias-border-l1);
 }
 
-.centerCol {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+/* An immersive work area keeps the sidebar tree mounted so its local state
+   survives, but removes it from every interaction and accessibility path. */
+.frame[data-sidebar-hidden] .sidebarCol {
+  border-right: none;
+  pointer-events: none;
 }
 
 .workAreaCol,
@@ -49,7 +49,11 @@
   border-right: 1px solid var(--dsw-alias-border-l2);
 }
 
-.companionCol {
+.workAreaCol:not([data-work-area-active]) {
+  display: none;
+}
+
+.frame[data-work-area-active] .companionCol {
   border-right: 1px solid var(--dsw-alias-border-l2);
 }
 
@@ -63,6 +67,10 @@
    a 1px seam. The collapsed sidebar instead retains a bordered compact rail. */
 .frame[data-details-collapsed] .detailsCol {
   border-left: none;
+}
+
+.frame[data-work-area-active]:not([data-work-area-companion-visible]) .companionCol {
+  border-right: none;
 }
 
 /* Drag handles are frame children (columns clip overflow): an 8px hit strip

@@ -44,8 +44,12 @@ interface SlotMap {
 }
 
 interface WorkAreaOwnerProps {
-  close(): void
+  id: string
   conversation: {
+    visible: boolean
+    setVisible(visible: boolean): void
+  }
+  sidebar: {
     visible: boolean
     setVisible(visible: boolean): void
   }
@@ -56,20 +60,21 @@ interface WorkAreaOwnerProps {
 
 ```ts
 interface ILayout {
-  openWorkArea(id: string, options?: { conversationVisible?: boolean }): void
+  openWorkArea(id: string, options?: { conversationVisible?: boolean; sidebarVisible?: boolean }): void
   closeWorkArea(id: string): void
   setWorkAreaConversationVisible(id: string, visible: boolean): void
+  setWorkAreaSidebarVisible(id: string, visible: boolean): void
 }
 ```
 
 约定具有以下精确行为：
 
 - `id` 是工作区域的 list entry id。若当前没有该 id 的活动 `shell.workArea` 胜出项，`openWorkArea` 就抛出异常。
-- 打开一个 id 会替换此前活动的工作区域。再次打开活动 id 只更新请求的伴随栏可见性。
-- `conversationVisible` 默认为 `true`。可见性是布局状态，不是插件所有的 CSS 惯例。
-- 当另一个工作区域随后变为活动项时，`closeWorkArea` 和 `setWorkAreaConversationVisible` 是受 id 保护的空操作。这使陈旧的关闭回调与卸载清理无法关闭替代项。
+- 打开一个 id 会替换此前活动的工作区域。再次打开活动 id 会更新请求的伴随栏与侧边栏可见性。
+- `conversationVisible` 和 `sidebarVisible` 均默认为 `true`。两者都是布局状态，不是插件所有的 CSS 惯例。
+- 当另一个工作区域随后变为活动项时，`closeWorkArea`、`setWorkAreaConversationVisible` 和 `setWorkAreaSidebarVisible` 是受 id 保护的空操作。这使陈旧回调与卸载清理无法关闭或改变替代项。
 - 若活动 id 在下一次注册对账时缺失，布局会关闭该工作区域。已经成为当前胜出项的同 id HMR 替代项可保留激活状态；持续缺失的 id 不能保持活动。
-- 活动 id、伴随栏可见性和拖拽后的伴随栏宽度均为临时状态。刷新后从普通对话布局开始。
+- 活动 id、伴随栏可见性、侧边栏可见性和拖拽后的伴随栏宽度均为临时状态。刷新后从普通对话布局开始。
 
 第三方注册只使用现有公共机制：
 
@@ -93,11 +98,11 @@ ctx.layout.openWorkArea('example.editor')
 
 ### 变更 A：渲染、布局与生命周期
 
-`AppFrame` 将 `shell.workArea` 加入子声明和 `PropsRenderSlots` 授权。当 `activeId` 已定义时，它调用 `renderSlot('shell.workArea', owner, { only: activeId })`；它不会在没有 `only` 的情况下调用 list renderer，因为那会渲染全部已注册工作区域。工作区域子树可随激活挂载和卸载。现有 `renderSlot('conversation', {})` 仍是唯一的对话渲染调用。
+`AppFrame` 将 `shell.workArea` 加入子声明和 `PropsRenderSlots` 授权。当 `activeId` 已定义时，它调用 `renderSlot('shell.workArea', owner, { only: activeId })`；它不会在没有 `only` 的情况下调用 list renderer，因为那会渲染全部已注册工作区域。工作区域子树可随激活挂载和卸载。现有 `renderSlot('conversation', {})` 仍是唯一的对话渲染调用，并在 CSS grid 于普通列和伴随列之间移动它时保持同一 React 树位置。
 
-没有活动工作区域时，当前的 sidebar / conversation / details 布局保持不变。存在活动工作区域且伴随栏可见时，逻辑顺序为 sidebar / work area / conversation / details。details 首先让步并自动关闭，从而保留现有策略。随后伴随对话保持在 `ui-layout` 所有的最小、默认与最大宽度范围内，工作区域获得余下的中心宽度。在更窄的 frame 中，现有 sidebar 自动收起仍会应用，details 保持关闭，工作区域可先于伴随对话被压缩。shell 提供原生分隔线、调整大小手柄和隐藏/显示控制，因此插件不会因漏做自身开关而困住用户。插件仅为在自己的工具栏中镜像操作而接收相同的可见性回调；插件不选择断点或原始列宽。
+没有活动工作区域时，当前的 sidebar / conversation / details 布局保持不变。存在活动工作区域且伴随栏可见时，逻辑顺序为 sidebar / work area / conversation / details。details 首先让步并自动关闭，从而保留现有策略。随后伴随对话保持在 `ui-layout` 所有的最小、默认与最大宽度范围内，工作区域获得余下的中心宽度。在更窄的 frame 中，现有 sidebar 自动收起仍会应用，details 保持关闭，工作区域可先于伴随对话被压缩。`sidebarVisible: false` 则使用零宽、`inert` 且 `aria-hidden` 的侧边栏列，不会改变用户保存的侧边栏偏好。shell 提供原生的分隔线、调整大小手柄和可见性控制，因此插件不会因漏做自身开关而困住用户。插件仅为在自己的工具栏中镜像操作而接收可见性回调；插件不选择断点或原始列宽。
 
-伴随栏隐藏时，`AppFrame` 不会在零宽可交互树中渲染 `conversation` 或 `details` 占用方。再次显示时会重新渲染相同的已注册占用方，绝不会生成第二份。只要注册仍存活，会话作用域 store 就继续由 slot runtime 所有并缓存，因此权威对话状态和草稿会保留；组件局部的滚动、焦点、选择或已打开 popover 状态可能重置，且不承诺跨显式隐藏保留。关闭工作区域后，对话会重新按普通形态渲染。
+伴随栏隐藏时，`AppFrame` 不会在零宽可交互树中渲染 `conversation` 或 `details` 占用方。再次显示时会重新渲染相同的已注册占用方，绝不会生成第二份。只要注册仍存活，会话作用域 store 就继续由 slot runtime 所有并缓存，因此权威对话状态和草稿会保留；组件局部的滚动、焦点、选择或已打开 popover 状态可能重置，且不承诺跨显式隐藏保留。关闭带有可见伴随栏的工作区域只改变 grid 放置，因此会话树保持挂载。
 
 details 列继续与唯一的对话挂载配对。隐藏伴随栏会关闭 details。若伴随栏隐藏时调用 `openDetails()`，布局会以原子方式同时打开伴随栏和 details；它绝不会记录不可见的可交互面板。details 绝不能在工作区域背后或被覆盖的 `shell.overlay` 层中打开。
 

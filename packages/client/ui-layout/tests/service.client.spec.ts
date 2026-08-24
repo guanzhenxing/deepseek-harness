@@ -14,6 +14,7 @@ function fakePanels(): PanelActions {
     openWorkArea: vi.fn(),
     closeWorkArea: vi.fn(),
     setWorkAreaConversationVisible: vi.fn(),
+    setWorkAreaSidebarVisible: vi.fn(),
   }
 }
 
@@ -64,12 +65,14 @@ describe('LayoutController', () => {
     } as never
     service.attachWorkAreas(slots)
 
-    service.openWorkArea('example.editor', { conversationVisible: false })
+    service.openWorkArea('example.editor', { conversationVisible: false, sidebarVisible: false })
     service.setWorkAreaConversationVisible('example.editor', true)
+    service.setWorkAreaSidebarVisible('example.editor', true)
     service.closeWorkArea('stale.editor')
 
-    expect(panels.openWorkArea).toHaveBeenCalledWith('example.editor', false)
+    expect(panels.openWorkArea).toHaveBeenCalledWith('example.editor', false, false)
     expect(panels.setWorkAreaConversationVisible).toHaveBeenCalledWith('example.editor', true)
+    expect(panels.setWorkAreaSidebarVisible).toHaveBeenCalledWith('example.editor', true)
     expect(panels.closeWorkArea).toHaveBeenCalledWith('stale.editor')
     expect(() => { service.openWorkArea('unknown') }).toThrow(/unknown work area/)
   })

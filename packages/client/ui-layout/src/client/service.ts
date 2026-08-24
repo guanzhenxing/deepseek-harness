@@ -28,12 +28,29 @@ export interface ILayout {
   openDetails(): void
   /** Close the details panel. */
   closeDetails(): void
-  /** Activate a registered root-scope work area. Unknown ids throw. */
-  openWorkArea(id: string, options?: { conversationVisible?: boolean }): void
-  /** Close this work area when it remains active; stale ids are ignored. */
+  /**
+   * Activate a registered root-scope work area. Unknown ids throw.
+   * @param id - registered work-area id.
+   * @param options - initial companion and sidebar visibility.
+   */
+  openWorkArea(id: string, options?: { conversationVisible?: boolean; sidebarVisible?: boolean }): void
+  /**
+   * Close this work area when it remains active; stale ids are ignored.
+   * @param id - work-area id that owns the close request.
+   */
   closeWorkArea(id: string): void
-  /** Show or hide the native conversation companion for this active work area. */
+  /**
+   * Show or hide the native conversation companion for this active work area.
+   * @param id - work-area id that owns the visibility request.
+   * @param visible - whether the companion is visible.
+   */
   setWorkAreaConversationVisible(id: string, visible: boolean): void
+  /**
+   * Show or hide the sidebar for this active work area without changing the user's sidebar preference.
+   * @param id - work-area id that owns the visibility request.
+   * @param visible - whether the sidebar is visible.
+   */
+  setWorkAreaSidebarVisible(id: string, visible: boolean): void
 }
 
 /** Cross-plugin panel-action face (ctx.layout). */
@@ -90,10 +107,10 @@ export class LayoutController implements ILayout {
   }
 
   /** Activate a registered work area, optionally hiding its native companion. */
-  openWorkArea(id: string, options: { conversationVisible?: boolean } = {}): void {
+  openWorkArea(id: string, options: { conversationVisible?: boolean; sidebarVisible?: boolean } = {}): void {
     if (!this.#hasWorkArea(id)) throw new Error(`layout: unknown work area "${id}"`)
     this.#activeWorkArea = id
-    this.#require().openWorkArea(id, options.conversationVisible ?? true)
+    this.#require().openWorkArea(id, options.conversationVisible ?? true, options.sidebarVisible ?? true)
   }
 
   /** Close this id only, so a stale plugin callback cannot close a newer area. */
@@ -105,6 +122,11 @@ export class LayoutController implements ILayout {
   /** Change companion visibility only while this id remains active. */
   setWorkAreaConversationVisible(id: string, visible: boolean): void {
     this.#require().setWorkAreaConversationVisible(id, visible)
+  }
+
+  /** Change sidebar visibility only while this id remains active. */
+  setWorkAreaSidebarVisible(id: string, visible: boolean): void {
+    this.#require().setWorkAreaSidebarVisible(id, visible)
   }
 
   #require(): PanelActions {

@@ -44,8 +44,12 @@ interface SlotMap {
 }
 
 interface WorkAreaOwnerProps {
-  close(): void
+  id: string
   conversation: {
+    visible: boolean
+    setVisible(visible: boolean): void
+  }
+  sidebar: {
     visible: boolean
     setVisible(visible: boolean): void
   }
@@ -56,20 +60,21 @@ interface WorkAreaOwnerProps {
 
 ```ts
 interface ILayout {
-  openWorkArea(id: string, options?: { conversationVisible?: boolean }): void
+  openWorkArea(id: string, options?: { conversationVisible?: boolean; sidebarVisible?: boolean }): void
   closeWorkArea(id: string): void
   setWorkAreaConversationVisible(id: string, visible: boolean): void
+  setWorkAreaSidebarVisible(id: string, visible: boolean): void
 }
 ```
 
 The contract has exact behavior:
 
 - `id` is the work area's list-entry id. `openWorkArea` throws when no active `shell.workArea` winner has that id.
-- Opening an id replaces the previously active work area. Reopening the active id updates only the requested companion visibility.
-- `conversationVisible` defaults to `true`. Visibility is layout state, not a plugin-owned CSS convention.
-- `closeWorkArea` and `setWorkAreaConversationVisible` are id-guarded no-ops when another work area has since become active. This makes stale close callbacks and unload cleanup unable to close a replacement.
+- Opening an id replaces the previously active work area. Reopening the active id updates the requested companion and sidebar visibility.
+- `conversationVisible` and `sidebarVisible` default to `true`. Both are layout state, not plugin-owned CSS conventions.
+- `closeWorkArea`, `setWorkAreaConversationVisible`, and `setWorkAreaSidebarVisible` are id-guarded no-ops when another work area has since become active. This makes stale callbacks and unload cleanup unable to close or change a replacement.
 - If the active id is absent at the next registration reconciliation, the layout closes that work area. A same-id HMR replacement that is already a current winner may preserve activation; an id that remains absent cannot stay active.
-- Active id, companion visibility, and dragged companion width are transient. Reload starts in the ordinary conversation layout.
+- Active id, companion visibility, sidebar visibility, and dragged companion width are transient. Reload starts in the ordinary conversation layout.
 
 A third-party registration uses only existing public mechanisms:
 
@@ -93,11 +98,11 @@ ctx.layout.openWorkArea('example.editor')
 
 ### Change A: rendering, geometry, and lifecycle
 
-`AppFrame` adds `shell.workArea` to its child declaration and `PropsRenderSlots` authorization. When `activeId` is defined, it calls `renderSlot('shell.workArea', owner, { only: activeId })`; it does not call the list renderer without `only`, which would render every registered work area. The work-area subtree may mount and unmount with activation. The existing `renderSlot('conversation', {})` remains the only conversation render call.
+`AppFrame` adds `shell.workArea` to its child declaration and `PropsRenderSlots` authorization. When `activeId` is defined, it calls `renderSlot('shell.workArea', owner, { only: activeId })`; it does not call the list renderer without `only`, which would render every registered work area. The work-area subtree may mount and unmount with activation. The existing `renderSlot('conversation', {})` remains the only conversation render call and stays at one React tree position while CSS grid moves it between the ordinary and companion columns.
 
-With no active work area, the current sidebar / conversation / details layout is unchanged. With an active work area and a visible companion, the logical order is sidebar / work area / conversation / details. Details concedes and auto-closes first, preserving the existing policy. The conversation companion then stays within `ui-layout`-owned minimum, default, and maximum widths; the work area receives the remaining center width. On a narrower frame, the existing sidebar auto-collapse still applies, details remains closed, and the work area may compress before the conversation companion. The shell provides a native divider, resize handle, and hide/show affordance, so a plugin cannot strand the user by omitting its own toggle. Plugins receive the same visibility callbacks only to mirror the action in their toolbar; they do not choose breakpoints or raw column widths.
+With no active work area, the current sidebar / conversation / details layout is unchanged. With an active work area and a visible companion, the logical order is sidebar / work area / conversation / details. Details concedes and auto-closes first, preserving the existing policy. The conversation companion then stays within `ui-layout`-owned minimum, default, and maximum widths; the work area receives the remaining center width. On a narrower frame, the existing sidebar auto-collapse still applies, details remains closed, and the work area may compress before the conversation companion. `sidebarVisible: false` instead uses a zero-width, inert, and `aria-hidden` sidebar column without changing the user's stored sidebar preference. The shell provides native dividers, resize handles, and visibility controls, so a plugin cannot strand the user by omitting its own toggle. Plugins receive visibility callbacks only to mirror actions in their toolbars; they do not choose breakpoints or raw column widths.
 
-When the companion is hidden, `AppFrame` does not render the `conversation` or `details` occupants in a zero-width interactive tree. Showing it renders the same registered occupants again, never a second copy. Session-scoped stores remain owned and cached by the slot runtime while their registrations live, so authoritative conversation state and drafts survive; component-local scroll, focus, selection, or open-popover state may reset and is not promised across an explicit hide. Closing the work area renders the conversation normally again.
+When the companion is hidden, `AppFrame` does not render the `conversation` or `details` occupants in a zero-width interactive tree. Showing it renders the same registered occupants again, never a second copy. Session-scoped stores remain owned and cached by the slot runtime while their registrations live, so authoritative conversation state and drafts survive; component-local scroll, focus, selection, or open-popover state may reset and is not promised across an explicit hide. Closing a work area with a visible companion changes only grid placement, so the conversation tree remains mounted.
 
 The details column remains paired with the one conversation mount. Hiding the companion closes details. `openDetails()` while the companion is hidden opens the companion and details atomically; it never records an invisible interactive panel. Details must never open behind a work area or in a covered `shell.overlay` layer.
 

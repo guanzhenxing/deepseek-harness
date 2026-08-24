@@ -1925,7 +1925,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       },
     ],
     ownerProps: [
-      '/** Work-area owner share: the selected entry\'s stable id. */\nexport interface WorkAreaOwnerProps { id: string }',
+      '/** Work-area owner share: the selected entry\'s stable id and shell-owned visibility actions. */\nexport interface WorkAreaOwnerProps {\n  /** Stable id of the selected work area. */\n  id: string\n  /** Native conversation companion state and id-guarded control. */\n  conversation: { visible: boolean; setVisible(visible: boolean): void }\n  /** Temporary sidebar state and id-guarded control for this work area. */\n  sidebar: { visible: boolean; setVisible(visible: boolean): void }\n}',
     ],
     ownerPropsReferences: [],
     standardProps: [

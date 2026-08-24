@@ -26,6 +26,7 @@ type LayoutState = {
   companion: number
   activeWorkArea: string | undefined
   workAreaConversationVisible: boolean
+  workAreaSidebarVisible: boolean
   narrow: boolean
   narrowExpanded: boolean
 }
@@ -42,9 +43,10 @@ type LayoutActions = {
   setNarrow: (draft: LayoutState, narrow: boolean) => void
   openDetails: (draft: LayoutState) => void
   closeDetails: (draft: LayoutState) => void
-  openWorkArea: (draft: LayoutState, id: string, conversationVisible: boolean) => void
+  openWorkArea: (draft: LayoutState, id: string, conversationVisible: boolean, sidebarVisible?: boolean) => void
   closeWorkArea: (draft: LayoutState, id: string) => void
   setWorkAreaConversationVisible: (draft: LayoutState, id: string, visible: boolean) => void
+  setWorkAreaSidebarVisible: (draft: LayoutState, id: string, visible: boolean) => void
 }
 
 /**
@@ -65,6 +67,7 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
       companion: COMPANION_DEFAULT,
       activeWorkArea: undefined,
       workAreaConversationVisible: false,
+      workAreaSidebarVisible: false,
       narrow: false,
       narrowExpanded: false,
     }),
@@ -90,21 +93,27 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
         if (d.details === 0) d.details = DETAILS_DEFAULT
       },
       closeDetails: (d) => { d.details = 0 },
-      openWorkArea: (d, id: string, conversationVisible: boolean) => {
+      openWorkArea: (d, id: string, conversationVisible: boolean, sidebarVisible: boolean = true) => {
         d.activeWorkArea = id
         d.workAreaConversationVisible = conversationVisible
+        d.workAreaSidebarVisible = sidebarVisible
         d.details = 0
       },
       closeWorkArea: (d, id: string) => {
         if (d.activeWorkArea !== id) return
         d.activeWorkArea = undefined
         d.workAreaConversationVisible = false
+        d.workAreaSidebarVisible = false
         d.details = 0
       },
       setWorkAreaConversationVisible: (d, id: string, visible: boolean) => {
         if (d.activeWorkArea !== id) return
         d.workAreaConversationVisible = visible
         if (!visible) d.details = 0
+      },
+      setWorkAreaSidebarVisible: (d, id: string, visible: boolean) => {
+        if (d.activeWorkArea !== id) return
+        d.workAreaSidebarVisible = visible
       },
     },
   })
