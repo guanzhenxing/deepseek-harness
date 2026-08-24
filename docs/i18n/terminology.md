@@ -210,5 +210,6 @@
 | vocabulary | 词汇 | | | |
 | wire format | 协议格式 | 协议格式（wire format） | | |
 | workflow | 工作流 | | | |
+| work area | 工作区域 | | 工作区 | 宿主布局中由插件注册、由 shell 选中的根作用域主内容区域；不同于 DSH Workspace |
 | wrapper | 包装层 | | | 软件层或 SDK 包装层 |
 | wrapper script | 包装脚本 | | | 可执行脚本包装层 |
