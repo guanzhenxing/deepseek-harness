@@ -36,7 +36,7 @@ declare module '@deepseek-ai/cordis' {
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     // The 'root' entry itself is the runtime's built-in slot (declared
-    // there); these four are the frame's children, declared by the same
+    // there); these five are the frame's children, declared by the same
     // register() call that contributes AppFrame. Session owners never pass
     // sessionId: the framework injects it as a standard prop.
     /**
@@ -74,6 +74,11 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'details': { kind: 'single'; scope: 'session'; owner: DetailsOwnerProps }
     /**
+     * Root-scope plugin primary content. The layout selects one registered id
+     * at a time and places it beside the shipped native conversation.
+     */
+    'shell.workArea': { kind: 'list'; scope: 'root'; owner: WorkAreaOwnerProps }
+    /**
      * Frame-wide floating layer, above every column and outside their scroll
      * containers. Deliberately generic and unowned by any feature: a badge, a
      * toast stack or a status pill all belong here, and entries order among
@@ -85,6 +90,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'shell.overlay': { kind: 'list'; scope: 'root' }
   }
+
 }
 
 // OwnerShare contracts — the render-side share the slot owner supplies at
@@ -107,6 +113,9 @@ export interface ConvOwnerProps {}
 /** Details owner share: empty — sessionId arrives as a framework-standard prop. */
 export interface DetailsOwnerProps {}
 
+/** Work-area owner share: the selected entry's stable id. */
+export interface WorkAreaOwnerProps { id: string }
+
 /** Required services (cordis fiber inject — the loader passes all module exports as an object plugin). */
 export const inject = ['slots', 'theme', 'locale']
 
@@ -127,6 +136,7 @@ export function apply(ctx: ClientContext): void {
         'sidebar': { kind: 'single', scope: 'root' },
         'conversation': { kind: 'single', scope: 'session-maybe' },
         'details': { kind: 'single', scope: 'session' },
+        'shell.workArea': { kind: 'list', scope: 'root' },
         'shell.overlay': { kind: 'list', scope: 'root' },
       },
       // Exclusive store: the factory itself — the framework instantiates per
@@ -140,11 +150,17 @@ export function apply(ctx: ClientContext): void {
       },
     }, AppFrame)
     return () => {
+      layout.detachWorkAreas()
       disposeRegistration()
       // provide()'s disposer settles asynchronously; teardown is synchronous fire-and-forget.
       void disposeService()
     }
   }, 'ui-layout: service + root registration')
+
+  ctx.effect(() => {
+    layout.attachWorkAreas(ctx.slots)
+    return () => { layout.detachWorkAreas() }
+  }, 'ui-layout: work-area reconciliation')
 
   // Theme presentation: pure DOM writes from resolved snapshots — initial
   // state through the getter once, then event-driven only; no React path.

@@ -19,7 +19,15 @@ beforeEach(() => { localStorage.clear() })
 describe('createLayoutStore', () => {
   it('initializes the sidebar at its default width, details closed, wide viewport assumed', () => {
     const { store } = createLayoutStore().create()
-    expect(store.getSnapshot()).toEqual({ sidebar: SIDEBAR_DEFAULT, details: 0, narrow: false, narrowExpanded: false })
+    expect(store.getSnapshot()).toEqual({
+      sidebar: SIDEBAR_DEFAULT,
+      details: 0,
+      companion: 420,
+      activeWorkArea: undefined,
+      workAreaConversationVisible: false,
+      narrow: false,
+      narrowExpanded: false,
+    })
   })
 
   it('each create() is an independent instance (factory is not a singleton)', () => {
@@ -55,7 +63,7 @@ describe('createLayoutStore', () => {
     actions.setSidebar(400)
     actions.setNarrow(true)
     actions.toggleSidebar()
-    expect(store.getSnapshot()).toEqual({ sidebar: 400, details: 0, narrow: true, narrowExpanded: true })
+    expect(store.getSnapshot()).toMatchObject({ sidebar: 400, details: 0, narrow: true, narrowExpanded: true })
     actions.toggleSidebar()
     expect(store.getSnapshot().narrowExpanded).toBe(false)
     expect(store.getSnapshot().sidebar).toBe(400)
@@ -96,8 +104,27 @@ describe('createLayoutStore', () => {
     expect(second.store.getSnapshot()).toEqual({
       sidebar: SIDEBAR_DEFAULT,
       details: 0,
+      companion: 420,
+      activeWorkArea: undefined,
+      workAreaConversationVisible: false,
       narrow: false,
       narrowExpanded: false,
     })
+  })
+
+  it('guards work-area lifecycle by id and closes details when the companion hides', () => {
+    const { store, actions } = createLayoutStore().create()
+    actions.openWorkArea('example.editor', true)
+    expect(store.getSnapshot()).toMatchObject({ activeWorkArea: 'example.editor', workAreaConversationVisible: true })
+    actions.openDetails()
+    expect(store.getSnapshot().details).toBe(DETAILS_DEFAULT)
+    actions.setWorkAreaConversationVisible('stale.editor', false)
+    expect(store.getSnapshot()).toMatchObject({ activeWorkArea: 'example.editor', workAreaConversationVisible: true })
+    actions.setWorkAreaConversationVisible('example.editor', false)
+    expect(store.getSnapshot()).toMatchObject({ workAreaConversationVisible: false, details: 0 })
+    actions.closeWorkArea('stale.editor')
+    expect(store.getSnapshot().activeWorkArea).toBe('example.editor')
+    actions.closeWorkArea('example.editor')
+    expect(store.getSnapshot()).toMatchObject({ activeWorkArea: undefined, workAreaConversationVisible: false })
   })
 })
