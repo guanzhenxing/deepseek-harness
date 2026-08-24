@@ -25,6 +25,7 @@ describe('createLayoutStore', () => {
       companion: 420,
       activeWorkArea: undefined,
       workAreaConversationVisible: false,
+      workAreaSidebarVisible: false,
       narrow: false,
       narrowExpanded: false,
     })
@@ -107,24 +108,33 @@ describe('createLayoutStore', () => {
       companion: 420,
       activeWorkArea: undefined,
       workAreaConversationVisible: false,
+      workAreaSidebarVisible: false,
       narrow: false,
       narrowExpanded: false,
     })
   })
 
-  it('guards work-area lifecycle by id and closes details when the companion hides', () => {
+  it('guards work-area lifecycle by id and restores sidebar visibility on close', () => {
     const { store, actions } = createLayoutStore().create()
-    actions.openWorkArea('example.editor', true)
-    expect(store.getSnapshot()).toMatchObject({ activeWorkArea: 'example.editor', workAreaConversationVisible: true })
+    actions.openWorkArea('example.editor', true, false)
+    expect(store.getSnapshot()).toMatchObject({
+      activeWorkArea: 'example.editor', workAreaConversationVisible: true, workAreaSidebarVisible: false,
+    })
     actions.openDetails()
     expect(store.getSnapshot().details).toBe(DETAILS_DEFAULT)
     actions.setWorkAreaConversationVisible('stale.editor', false)
     expect(store.getSnapshot()).toMatchObject({ activeWorkArea: 'example.editor', workAreaConversationVisible: true })
     actions.setWorkAreaConversationVisible('example.editor', false)
     expect(store.getSnapshot()).toMatchObject({ workAreaConversationVisible: false, details: 0 })
+    actions.setWorkAreaSidebarVisible('stale.editor', true)
+    expect(store.getSnapshot().workAreaSidebarVisible).toBe(false)
+    actions.setWorkAreaSidebarVisible('example.editor', true)
+    expect(store.getSnapshot().workAreaSidebarVisible).toBe(true)
     actions.closeWorkArea('stale.editor')
     expect(store.getSnapshot().activeWorkArea).toBe('example.editor')
     actions.closeWorkArea('example.editor')
-    expect(store.getSnapshot()).toMatchObject({ activeWorkArea: undefined, workAreaConversationVisible: false })
+    expect(store.getSnapshot()).toMatchObject({
+      activeWorkArea: undefined, workAreaConversationVisible: false, workAreaSidebarVisible: false,
+    })
   })
 })

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/architecture/2026-08-24-plugin-work-areas-and-session-browser-collapse.md
-2026-08-24-plugin-work-areas-and-session-browser-collapse.md: a3cd09bcbceba455cfcc8ca65a2fcba4ec3d7a8c
-2026-08-24-plugin-work-areas-and-session-browser-collapse.zh.md: f9c6e29e960b0f687b2d4b323575d067484be68e
+2026-08-24-plugin-work-areas-and-session-browser-collapse.md: d9ce6609cebe6142ed4edfe22e50a0fc3a5af34f
+2026-08-24-plugin-work-areas-and-session-browser-collapse.zh.md: 65f10bb7527d77675ce601c6dd43784833bd0a63
