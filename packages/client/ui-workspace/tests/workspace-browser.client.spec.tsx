@@ -96,29 +96,6 @@ function rerender(b: ReturnType<typeof mount>, overrides: Partial<WorkspaceBrows
 }
 
 describe('WorkspaceBrowser', () => {
-  it('collapses the session body through an accessible persisted disclosure', () => {
-    const b = mount({
-      useSessions: hook(sessionState([summary('alpha-s', 1)])),
-      useWorkspaces: hook(workspaceState([workspace('alpha', ['alpha-s'])])),
-    })
-    const disclosure = screen.getByRole('button', { name: '收起会话列表' })
-    expect(disclosure.getAttribute('aria-controls')).toBe('workspace-session-region')
-    expect(disclosure.getAttribute('aria-expanded')).toBe('true')
-    fireEvent.click(disclosure)
-    expect(b.store.getSnapshot().sessionsCollapsed).toBe(true)
-    expect(screen.getByRole('button', { name: '展开会话列表' }).getAttribute('aria-expanded')).toBe('false')
-    expect(screen.queryByRole('tree')).toBeNull()
-  })
-
-  it('search expands a collapsed session body before showing results', () => {
-    const b = mount()
-    fireEvent.click(screen.getByRole('button', { name: '收起会话列表' }))
-    expect(b.store.getSnapshot().sessionsCollapsed).toBe(true)
-    fireEvent.click(screen.getByRole('button', { name: '搜索会话' }))
-    expect(b.store.getSnapshot().sessionsCollapsed).toBe(false)
-    expect(screen.getByRole('button', { name: '收起会话列表' }).getAttribute('aria-expanded')).toBe('true')
-  })
-
   it('workspace hover card shows a POSIX home descendant as ~', () => {
     vi.useFakeTimers()
     try {
@@ -411,7 +388,7 @@ describe('WorkspaceBrowser', () => {
     })
     fireEvent.click(screen.getByText('alpha'))
     expect(screen.getByText('child-s')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /^展开其余|^收起$/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /展开|收起/ })).toBeNull()
     expect(screen.getByText('child-s').closest('[role="treeitem"]')?.getAttribute('draggable')).toBe('true')
   })
 

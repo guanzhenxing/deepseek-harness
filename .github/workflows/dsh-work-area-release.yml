@@ -42,6 +42,9 @@ jobs:
         run: |
           pnpm run release:pack --family vendor --out dist/dsh-vendor
           pnpm run release:pack --family dsh --out dist/dsh-work-area
+          # ui-workspace stays upstream-identical; consumers take the official npm tarball.
+          rm dist/dsh-work-area/deepseek-ai-dsh-client-ui-workspace-*.tgz
+          sed -i '/dsh-client-ui-workspace/d' dist/dsh-work-area/publish-order.txt
           pnpm run release:verify-packed-install --family dsh --from dist/dsh-vendor --from dist/dsh-work-area
       - name: Produce integrity manifest and third-party notices
         run: |

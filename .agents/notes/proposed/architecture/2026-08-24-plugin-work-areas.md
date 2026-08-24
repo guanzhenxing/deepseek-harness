@@ -1,8 +1,8 @@
-# Agent Note: Plugin Work Areas and a Collapsible Session Browser
+# Agent Note: Plugin Work Areas
 
 Status: proposed
 
-English | [中文](2026-08-24-plugin-work-areas-and-session-browser-collapse.zh.md)
+English | [中文](2026-08-24-plugin-work-areas.zh.md)
 
 ## Problem
 
@@ -10,11 +10,9 @@ DeepSeek Harness lets a client plugin add chrome to existing views, replace a de
 
 This gap is not specific to a knowledge-management product. Editors, notebooks, terminal dashboards, artifact previews, data-analysis tools, and other plugins may all need their own primary content beside the native conversation. Without a shell-owned composition, each consumer must either cover the application with an overlay, implement a reduced chat client against services, or copy private conversation UI.
 
-A smaller, independent gap exists in the Session browser. `WorkspaceBrowser` already supports grouped and flat presentation, but its top-level browsing region is not a native disclosure. A product that wants the Session region collapsed must currently target generated DOM classes, intercept document clicks, and maintain layout fixes outside the owning package. The product's brand, footer label, and preferred grouping default are not general DSH concerns; the missing accessible disclosure and empty-region geometry are.
-
 ## Proposal
 
-Ship two independently mergeable changes. Change A is the required foundation: a shell-owned plugin work area with the existing native conversation as its single companion. Change B is a separate native disclosure for the Session browser. Neither change contains product branding, knowledge-management behavior, downstream storage markers, or a product-specific default.
+Ship one change: a shell-owned plugin work area with the existing native conversation as its single companion. The change contains no product branding, knowledge-management behavior, downstream storage markers, or product-specific default.
 
 ### Definitions and invariants
 
@@ -30,7 +28,7 @@ The implementation preserves these invariants:
 - Closing or unloading a work area returns to the ordinary full conversation without changing the current Session.
 - `shell.overlay` keeps its present floating, additive semantics and remains above all allocated columns.
 
-### Change A: `shell.workArea` and layout control
+### `shell.workArea` and layout control
 
 `ui-layout` declares one new list slot beside its existing children. A list allows unrelated plugins to register independently, while `AppFrame` renders only the selected id:
 
@@ -96,7 +94,7 @@ ctx.slots.inject('shell.workArea', () => ctx.slots.register(
 ctx.layout.openWorkArea('example.editor')
 ```
 
-### Change A: rendering, geometry, and lifecycle
+### Rendering, geometry, and lifecycle
 
 `AppFrame` adds `shell.workArea` to its child declaration and `PropsRenderSlots` authorization. When `activeId` is defined, it calls `renderSlot('shell.workArea', owner, { only: activeId })`; it does not call the list renderer without `only`, which would render every registered work area. The work-area subtree may mount and unmount with activation. The existing `renderSlot('conversation', {})` remains the only conversation render call and stays at one React tree position while CSS grid moves it between the ordinary and companion columns.
 
@@ -107,14 +105,6 @@ When the companion is hidden, `AppFrame` does not render the `conversation` or `
 The details column remains paired with the one conversation mount. Hiding the companion closes details. `openDetails()` while the companion is hidden opens the companion and details atomically; it never records an invisible interactive panel. Details must never open behind a work area or in a covered `shell.overlay` layer.
 
 `LayoutController` observes `shell.workArea` registration changes through the existing slot registry. It validates activation against the current winners, clears an id that remains absent at reconciliation, and detaches its store actions and subscription on disposal. HMR replacement may preserve a same-id winner but cannot leave a stale active id, callback, listener, or column.
-
-### Change B: native Session-browser disclosure
-
-Independently, `ui-workspace` adds a real disclosure button to the Session browser section header. The button has a localized accessible name, `aria-expanded`, and `aria-controls`; search, view options, and add-Workspace buttons keep their own gestures and never toggle the region. Activating search expands the region so results are visible. Sidebar rail collapse does not overwrite the remembered Session-region choice.
-
-The browser-owned view store adds a persisted `sessionsCollapsed` flag. Rehydrated records that predate the field interpret absence as `false`; user action writes the explicit value. Collapsed state unmounts the list/search-result body but keeps the section header and dialogs under their existing owner. The component emits explicit collapsed and empty classes so its own CSS can remove flex growth when the region is collapsed or truly contains no browsable row. No downstream selector reaches into CSS-module names, and no document-level click proxy participates.
-
-This change does **not** make flat mode the DSH default and does not add a downstream migration marker to DSH storage. Grouped presentation remains the product default, and the existing view-options menu remains the user authority. A downstream distribution may retain a one-time adapter for its own established default, but that adapter is not part of the generic fork patch.
 
 ### Package and file ownership
 
@@ -127,14 +117,12 @@ The intended implementation footprint is deliberately narrow:
 | Layout rendering | `packages/client/ui-layout/src/client/AppFrame.tsx`, `AppFrame.module.css`, `columns.ts` | Render the selected work area, keep one conversation mount, add split geometry, controls, and concession. |
 | Layout verification | `packages/client/ui-layout/tests/*` | Cover registration, service semantics, store actions, geometry, render counts, unload, and HMR-shaped replacement. |
 | Shell contract documentation | `packages/client/ui-layout/README.md` and counterpart, runtime slot comments, generated slot catalog | Document the new seat without changing the slot engine. |
-| Session disclosure | `packages/client/ui-workspace/src/client/WorkspaceBrowser.tsx`, `WorkspaceBrowser.module.css`, `stores.ts`, locales | Add the native disclosure, persisted state, search expansion, and empty/collapsed geometry. |
-| Session verification | `packages/client/ui-workspace/tests/*`, README and counterpart | Cover accessibility, persistence, search, rail interaction, empty state, and layout. |
 
-Change A requires no behavior change in `ui-slots`, `ui-renderer`, or `ui-conversation`. Those packages may receive comment, type-graph, or generated-document updates only when repository tooling requires them. A proposed implementation that adds a second conversation renderer, exports private conversation components, or weakens child-slot authorization is out of scope.
+The change requires no behavior change in `ui-slots`, `ui-renderer`, or `ui-conversation`. Those packages may receive comment, type-graph, or generated-document updates only when repository tooling requires them. A proposed implementation that adds a second conversation renderer, exports private conversation components, or weakens child-slot authorization is out of scope.
 
 ### Downstream adapter
 
-A downstream knowledge-management plugin registers its entire workbench in `shell.workArea`, replaces its `shell.overlay` registration, and uses `ctx.layout.openWorkArea('innovation.pkm')`. Its Agent toggle delegates to `setWorkAreaConversationVisible`; its existing note actions remain plugin-owned. The plugin deletes its reduced message renderer, model menu, command menu, approval warning, and custom composer only after the native companion passes integration tests. Brand marks, the “PKM Workbench” label, note injection, keyboard policy, and any one-time flat-default migration remain downstream.
+A downstream knowledge-management plugin registers its entire workbench in `shell.workArea`, replaces its `shell.overlay` registration, and uses `ctx.layout.openWorkArea('innovation.pkm')`. Its Agent toggle delegates to `setWorkAreaConversationVisible`; its existing note actions remain plugin-owned. The plugin deletes its reduced message renderer, model menu, command menu, approval warning, and custom composer only after the native companion passes integration tests. Brand marks, the “PKM Workbench” label, note injection, and keyboard policy remain downstream.
 
 Because the companion is the ordinary `conversation` occupant, a later DSH upgrade to message cards, tool trees, approvals, questions, attachments, models, commands, or the composer is consumed automatically when the fork rebases onto that release. This is source reuse, not source copying. It does not promise a conflict-free rebase: changes to `AppFrame`, the `conversation` slot contract, or column policy may require adaptation, and the assembled tests are the compatibility gate.
 
@@ -146,9 +134,8 @@ The fork carries small, reviewable commits in this order:
 2. Render the selected work area beside the single native conversation and add geometry controls.
 3. Add assembled lifecycle, conversation-identity, details, and HMR replacement tests; update paired documentation.
 4. Integrate one external example plugin without product branding.
-5. Separately add the Session-browser disclosure and its tests.
 
-The work-area series must be buildable and releasable without Change B. The Session-browser series must not import or depend on work-area state.
+The series must stay buildable and releasable on its own.
 
 ## Alternatives considered
 
@@ -162,7 +149,9 @@ The work-area series must be buildable and releasable without Change B. The Sess
 
 **Replace the entire `root` or `conversation` slot from the downstream plugin.** Rejected. Replacement removes the shipped AppFrame or conversation child slots and transfers permanent ownership of core UI to the consumer.
 
-**Add product branding, flat-by-default behavior, or knowledge-management commands to the fork.** Rejected. Those are distribution choices, reduce upstream acceptability, and create conflicts for other DSH consumers. Only the native Session disclosure is shared behavior.
+**Add product branding, flat-by-default behavior, or knowledge-management commands to the fork.** Rejected. Those are distribution choices, reduce upstream acceptability, and create conflicts for other DSH consumers.
+
+**Ship a native Session-browser disclosure inside the fork.** Rejected on 2026-08-24. The fork ships only capabilities official DSH lacks and leaves shipped UI untouched, so with no plugin work area active the client renders pixel-identical to upstream. A fork-owned collapse control inside `ui-workspace` broke that boundary for a product concern official DSH does not have; the fork returned the package to upstream. A downstream distribution that still wants a collapsed Session region keeps its own adapter outside the DSH patch, and an equivalent official control is adopted from upstream rather than maintained in parallel.
 
 **Open a second browser window.** Rejected as the primary design. It is not an embedded work area, complicates focus and lifecycle, and does not solve in-page editors or dashboards. A second window can remain a downstream option.
 
@@ -176,9 +165,6 @@ The work-area series must be buildable and releasable without Change B. The Sess
 - Hiding and showing the companion cannot submit, answer, cancel, focus, or handle a shortcut from a hidden zero-width tree; Session state and draft recover through the existing scoped stores.
 - Details is visible in the allocated layout when opened and is never rendered behind the work area; details and companion concession recover after resize.
 - Column resizing, sidebar auto-collapse, narrow frames, reduced motion, light/dark themes, no-Session hero state, and `shell.overlay` remain usable.
-- The Session-region disclosure is a keyboard-operable button with localized accessible text and correct `aria-expanded` / `aria-controls` state.
-- Search expands a collapsed Session region, rail collapse preserves its preference, old persisted records default safely, and collapsed or empty geometry never covers the section header or footer actions.
-- DSH's grouped default, Workspace accounting, Session selection, and view-options authority do not change.
 - Paired docs, package tests, assembled client boot, typecheck, lint, and packed-artifact verification pass with no downstream brand or absolute local path in the DSH patch.
 
 ## Risks
@@ -187,5 +173,4 @@ The work-area series must be buildable and releasable without Change B. The Sess
 - Explicitly hiding the companion may reset component-local view state. The contract promises Session and scoped-store continuity, not preservation of ephemeral DOM state.
 - The existing details API was designed for an always-present conversation column. Its hidden-companion behavior must be selected before implementation and protected by tests.
 - A work-area entry can crash or disappear during HMR. Existing slot error boundaries and the active-id reconciliation must return the user to a usable conversation layout.
-- Persisted Session-browser records have no schema validator. Reading an absent `sessionsCollapsed` field as `false` avoids a forced migration, but malformed existing records retain the store engine's current failure posture.
 - An upstream redesign of root navigation may supersede `shell.workArea`. The fork should delete its patch when an equivalent official route exists rather than preserve parallel concepts.
