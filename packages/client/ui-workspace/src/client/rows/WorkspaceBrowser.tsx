@@ -833,7 +833,6 @@ export function WorkspaceBrowser({
   const directoryFlowAvailable = useDirectoryFlow(occupied => occupied)
   const groupBy = useStore(s => s.groupBy)
   const orderBy = useStore(s => s.orderBy)
-  const sessionsCollapsed = useStore(s => s.sessionsCollapsed)
   const groupExpansion = useStore(s => s.groupExpansion)
   const sessionOrderByAccount = useStore(s => s.sessionOrderByAccount)
   const sessionUpdatedAtByAccount = useStore(s => s.sessionUpdatedAtByAccount)
@@ -1072,24 +1071,9 @@ export function WorkspaceBrowser({
     <div className={clsx(css.root, !wide && css.rail)}>
       <div className={css.sectionHeader}>
         {wide && (
-          <>
-            <button
-              type="button"
-              className={css.disclosureButton}
-              aria-label={sessionsCollapsed ? t('browser.expand') : t('browser.collapse')}
-              aria-controls="workspace-session-region"
-              aria-expanded={!sessionsCollapsed}
-              onClick={() => {
-                setSearchExpanded(false)
-                actions.setSessionsCollapsed(!sessionsCollapsed)
-              }}
-            >
-              <span aria-hidden="true">{sessionsCollapsed ? '▸' : '▾'}</span>
-            </button>
-            <span className={clsx(css.sectionLabel, css.wide, searchExpanded && css.sectionLabelHidden)}>
-              {groupBy === 'flat' ? t('section.sessions') : t('section.workspaces')}
-            </span>
-          </>
+          <span className={clsx(css.sectionLabel, css.wide, searchExpanded && css.sectionLabelHidden)}>
+            {groupBy === 'flat' ? t('section.sessions') : t('section.workspaces')}
+          </span>
         )}
         {wide && (
           <div className={clsx(css.searchSlot, searchExpanded && css.searchSlotExpanded)}>
@@ -1098,7 +1082,6 @@ export function WorkspaceBrowser({
               className={clsx(css.search, searchExpanded && css.searchExpanded)}
               onClick={() => {
                 setWsPickerOpen(false)
-                actions.setSessionsCollapsed(false)
                 setSearchExpanded(true)
                 searchInput.current?.focus()
               }}
@@ -1111,7 +1094,6 @@ export function WorkspaceBrowser({
                   aria-expanded={searchExpanded}
                   onClick={() => {
                     setWsPickerOpen(false)
-                    actions.setSessionsCollapsed(false)
                     setSearchExpanded(true)
                   }}
                 >
@@ -1206,7 +1188,6 @@ export function WorkspaceBrowser({
             className={css.searchButton}
             aria-label={t('search.sessions.aria')}
             onClick={() => {
-              actions.setSessionsCollapsed(false)
               setSearchExpanded(true)
               setSearchOnExpand(true)
               expandSidebar()
@@ -1219,8 +1200,8 @@ export function WorkspaceBrowser({
 
       {/* Always-mounted seat keeps the region's flex slot while the list
           itself is wide-only. */}
-      <div id="workspace-session-region" className={clsx(css.listArea, sessionsCollapsed && css.listAreaCollapsed)}>
-        {wide && !sessionsCollapsed && (normalizedQuery !== ''
+      <div className={css.listArea}>
+        {wide && (normalizedQuery !== ''
           ? (
             <SearchResults
               useSessions={useSessions}
