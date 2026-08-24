@@ -1,0 +1,59 @@
+name: DSH Work Area release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Immutable work-area tag to release (for example dsh-work-area-v0.1.1-rc.2.1)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build the official artifact profile and run focused regression tests
+        run: |
+          pnpm run build:official
+          pnpm exec vitest run \
+            packages/client/ui-layout/tests/columns.client.spec.ts \
+            packages/client/ui-layout/tests/layout-store.client.spec.ts \
+            packages/client/ui-layout/tests/service.client.spec.ts \
+            packages/client/ui-layout/tests/app-frame.client.spec.tsx \
+            packages/client/ui-layout/tests/apply.client.spec.ts \
+            packages/client/ui-workspace/tests/workspace-browser.client.spec.tsx \
+            packages/client/ui-workspace/tests/browser-styles.client.spec.ts \
+            packages/client/ui-workspace/tests/apply.client.spec.ts
+      - name: Pack the DSH and vendored closure
+        run: |
+          pnpm run release:pack --family vendor --out dist/dsh-vendor
+          pnpm run release:pack --family dsh --out dist/dsh-work-area
+          pnpm run release:verify-packed-install --family dsh --from dist/dsh-vendor --from dist/dsh-work-area
+      - name: Produce integrity manifest and third-party notices
+        run: |
+          (cd dist && sha256sum dsh-work-area/*.tgz > dsh-work-area.sha256)
+          pnpm run gen-third-party-notices
+          cp THIRD_PARTY_NOTICES.md dist/THIRD_PARTY_NOTICES.md
+      - name: Publish immutable GitHub Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ inputs.tag }}" \
+            --title "${{ inputs.tag }}" \
+            --notes "DSH work-area artifact set; see dsh-work-area.sha256 for SHA-256 values." \
+            dist/dsh-work-area/*.tgz dist/dsh-work-area.sha256 dist/THIRD_PARTY_NOTICES.md
