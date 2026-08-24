@@ -113,8 +113,15 @@ export interface ConvOwnerProps {}
 /** Details owner share: empty — sessionId arrives as a framework-standard prop. */
 export interface DetailsOwnerProps {}
 
-/** Work-area owner share: the selected entry's stable id. */
-export interface WorkAreaOwnerProps { id: string }
+/** Work-area owner share: the selected entry's stable id and shell-owned visibility actions. */
+export interface WorkAreaOwnerProps {
+  /** Stable id of the selected work area. */
+  id: string
+  /** Native conversation companion state and id-guarded control. */
+  conversation: { visible: boolean; setVisible(visible: boolean): void }
+  /** Temporary sidebar state and id-guarded control for this work area. */
+  sidebar: { visible: boolean; setVisible(visible: boolean): void }
+}
 
 /** Required services (cordis fiber inject — the loader passes all module exports as an object plugin). */
 export const inject = ['slots', 'theme', 'locale']

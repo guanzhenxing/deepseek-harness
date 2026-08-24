@@ -12,7 +12,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render } from '@testing-library/react'
-import { useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { AppFrame } from '@deepseek-ai/dsh-client-ui-layout/src/client/AppFrame.tsx'
 import type { AppFrameProps } from '@deepseek-ai/dsh-client-ui-layout/src/client/AppFrame.tsx'
 import { SIDEBAR_COLLAPSED } from '@deepseek-ai/dsh-client-ui-layout/src/client/columns.ts'
@@ -48,6 +48,16 @@ class ResizeObserverStub {
 }
 
 let frameWidth = 1920
+let conversationMounts = 0
+let conversationUnmounts = 0
+
+function ConversationProbe() {
+  useEffect(() => {
+    conversationMounts += 1
+    return () => { conversationUnmounts += 1 }
+  }, [])
+  return <div data-testid="center-content" />
+}
 
 /** Test-local selector hook over a framework-neutral store instance. */
 function hookOf<T>(inst: { subscribe: (fn: () => void) => () => void; getSnapshot: () => T }) {
@@ -61,7 +71,7 @@ function mountFrame() {
   const renderSlot = ((key: string, owner: object) => {
     slotCalls.push({ key, props: owner })
     if (key === 'sidebar') return <div data-testid="sidebar-content" />
-    if (key === 'conversation') return <div data-testid="center-content" />
+    if (key === 'conversation') return <ConversationProbe />
     if (key === 'details') return <div data-testid="details-content" />
     if (key === 'shell.workArea') return <div data-testid="work-area-content" />
     if (key === 'conversation.empty') return <div data-testid="empty-content" />
@@ -110,9 +120,11 @@ function mountFrame() {
 }
 
 function tracks(frame: HTMLElement): number[] {
-  const m = /^(\d+)px minmax\(0, 1fr\) (\d+)px$/.exec(frame.style.gridTemplateColumns)
-  if (m === null) throw new Error(`unexpected template: ${frame.style.gridTemplateColumns}`)
-  return [Number(m[1]), Number(m[2])]
+  const template = frame.style.gridTemplateColumns
+  if (!/^\d+px minmax\(0, 1fr\)(?: \d+px)? \d+px$/.test(template)) {
+    throw new Error(`unexpected template: ${template}`)
+  }
+  return [...template.matchAll(/(\d+)px/g)].map(match => Number(match[1]))
 }
 
 function drag(handle: Element, fromX: number, toX: number): void {
@@ -130,6 +142,8 @@ beforeEach(() => {
   selectedSessionBlank.current = false
   selectedSessionTitle.current = undefined
   workspacesReady.current = true
+  conversationMounts = 0
+  conversationUnmounts = 0
   vi.useFakeTimers()
   vi.stubGlobal('ResizeObserver', ResizeObserverStub)
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => setTimeout(() => { cb(0) }, 16) as unknown as number)
@@ -221,6 +235,30 @@ describe('AppFrame', () => {
     expect(getByTestId('work-area-content')).toBeTruthy()
     expect(queryByTestId('center-content')).toBeNull()
     expect(queryByTestId('details-content')).toBeNull()
+  })
+
+  it('keeps the native conversation mounted while work-area layout moves its host', () => {
+    const { instance } = mountFrame()
+    expect([conversationMounts, conversationUnmounts]).toEqual([1, 0])
+    act(() => { instance.actions.openWorkArea('example.editor', true) })
+    expect([conversationMounts, conversationUnmounts]).toEqual([1, 0])
+    act(() => { instance.actions.closeWorkArea('example.editor') })
+    expect([conversationMounts, conversationUnmounts]).toEqual([1, 0])
+  })
+
+  it('hides an immersive sidebar at zero width without overwriting its preference', () => {
+    const { frame, instance, getByTestId } = mountFrame()
+    act(() => { instance.actions.setSidebar(400) })
+    act(() => { instance.actions.openWorkArea('example.editor', false, false) })
+    expect(tracks(frame)).toEqual([0, 0, 0])
+    expect(frame.hasAttribute('data-sidebar-hidden')).toBe(true)
+    const sidebar = getByTestId('sidebar-content').parentElement!
+    expect(sidebar.getAttribute('aria-hidden')).toBe('true')
+    expect(sidebar.hasAttribute('inert')).toBe(true)
+    expect(frame.querySelectorAll('[class*="handle"]')).toHaveLength(0)
+    act(() => { instance.actions.closeWorkArea('example.editor') })
+    expect(tracks(frame)).toEqual([400, 0])
+    expect(instance.getSnapshot().sidebar).toBe(400)
   })
 
 

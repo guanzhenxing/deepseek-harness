@@ -96,10 +96,13 @@ export function computeColumns(viewport: number, sidebar: number, details: numbe
  * @param sidebar - sidebar width preference in px (0 = closed).
  * @param companion - native conversation companion preference (0 = hidden).
  * @param details - details preference in px (0 = closed).
+ * @param sidebarVisible - whether the active work area temporarily shows the sidebar.
  * @returns resolved sidebar, work-area, companion, and details widths.
  */
-export function computeWorkAreaColumns(viewport: number, sidebar: number, companion: number, details: number): WorkAreaColumns {
-  const s = sidebar === 0 ? SIDEBAR_COLLAPSED : clampWidth(sidebar, SIDEBAR_MIN, SIDEBAR_MAX)
+export function computeWorkAreaColumns(
+  viewport: number, sidebar: number, companion: number, details: number, sidebarVisible = true,
+): WorkAreaColumns {
+  const s = sidebarVisible ? (sidebar === 0 ? SIDEBAR_COLLAPSED : clampWidth(sidebar, SIDEBAR_MIN, SIDEBAR_MAX)) : 0
   let c = companion === 0 ? 0 : clampWidth(companion, COMPANION_MIN, COMPANION_MAX)
   let d = details === 0 ? 0 : clampWidth(details, DETAILS_MIN, DETAILS_MAX)
   let workArea = viewport - s - c - d

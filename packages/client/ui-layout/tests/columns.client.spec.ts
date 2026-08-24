@@ -106,4 +106,9 @@ describe('computeWorkAreaColumns', () => {
     expect(cols.companion).toBe(0)
     expect(cols.workArea).toBe(1_000)
   })
+
+  it('removes the sidebar width for an immersive work area without changing the sidebar preference', () => {
+    const cols = computeWorkAreaColumns(1_280, SIDEBAR_DEFAULT, 0, 0, false)
+    expect(cols).toMatchObject({ sidebar: 0, workArea: 1_280, companion: 0, details: 0 })
+  })
 })
