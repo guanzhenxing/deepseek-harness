@@ -1,12 +1,11 @@
 /**
- * Three-column shell frame, registered into the built-in 'root' slot (the web
- * shell renders only 'root'). Owns the grid tracks (sidebar | center |
- * details), the drag handles (pointer capture + rAF throttle), the concession
- * chain (columns.ts), and the child-slot render decisions: the sidebar slot
- * renders HERE with live parameters from the concession solve, and the
- * session-aware occupants render in fixed column positions; strict entries
- * gate themselves on current-session availability while session-maybe
- * entries retain identity. Pure component: everything arrives
+ * Shell frame, registered into the built-in 'root' slot (the web shell renders
+ * only 'root'). It owns the grid tracks, drag handles (pointer capture + rAF
+ * throttle), concession chain (columns.ts), and child-slot render decisions:
+ * the sidebar slot renders HERE with live parameters from the concession
+ * solve, and session-aware occupants render in fixed positions; strict entries
+ * gate themselves on current-session availability while session-maybe entries
+ * retain identity. Pure component: everything arrives
  * through the three framework shares — zero cordis or framework imports,
  * zero self-made hooks.
  */
@@ -23,22 +22,17 @@ export type AppFrameProps =
   & PropsRenderSlots<'sidebar' | 'conversation' | 'details' | 'shell.workArea' | 'shell.overlay'>
   & PropsStore<ReturnType<typeof createLayoutStore>>
 
-/** Center column grid item (session-body building block). */
-function CenterColumn(props: { children?: ReactNode }) {
-  return <div className={css.centerCol}>{props.children}</div>
-}
-
 /** Selected plugin work-area grid item. */
-function WorkAreaColumn(props: { children?: ReactNode }) {
-  return <div className={css.workAreaCol}>{props.children}</div>
+function WorkAreaColumn(props: { active: boolean; children?: ReactNode }) {
+  return <div className={css.workAreaCol} data-work-area-active={props.active || undefined}>{props.children}</div>
 }
 
-/** Native conversation companion grid item. */
-function CompanionColumn(props: { children?: ReactNode }) {
-  return <div className={css.companionCol} data-shell-native-conversation-companion>{props.children}</div>
+/** Native conversation host; its grid position changes without replacing its React tree. */
+function CompanionColumn(props: { companion: boolean; children?: ReactNode }) {
+  return <div className={css.companionCol} data-shell-native-conversation-companion={props.companion || undefined}>{props.children}</div>
 }
 
-/** Details column grid item; width 0 keeps the subtree mounted (never unmount on close). */
+/** Details column grid item; only an explicitly hidden companion unmounts its subtree. */
 function DetailsColumn(props: { children?: ReactNode }) {
   return <div className={css.detailsCol}>{props.children}</div>
 }
@@ -93,7 +87,7 @@ function DragHandle(props: { side: 'sidebar' | 'companion' | 'details'; left: nu
   )
 }
 
-/** The three-column frame (see module doc). */
+/** The shell frame (see module doc). */
 export function AppFrame({
   useStore,
   useSessions,
@@ -145,18 +139,20 @@ export function AppFrame({
   // absorbs the squeeze.
   const narrow = viewport < SIDEBAR_AUTO_COLLAPSE
   useEffect(() => { actions.setNarrow(narrow) }, [actions, narrow])
-  const sidebarCollapsed = narrow ? !panels.narrowExpanded : panels.sidebar === 0
+  const activeWorkArea = panels.activeWorkArea
+  const sidebarVisible = activeWorkArea === undefined || panels.workAreaSidebarVisible
+  const sidebarCollapsed = sidebarVisible && (narrow ? !panels.narrowExpanded : panels.sidebar === 0)
   const sidebarPreference = sidebarCollapsed
     ? 0
     : panels.sidebar === 0 ? SIDEBAR_DEFAULT : panels.sidebar
-  const activeWorkArea = panels.activeWorkArea
   const companionVisible = activeWorkArea !== undefined && panels.workAreaConversationVisible
+  const conversationMounted = activeWorkArea === undefined || companionVisible
   const detailsPreference = detailsSession === undefined || (activeWorkArea !== undefined && !companionVisible)
     ? 0
     : panels.details
   const workAreaCols = activeWorkArea === undefined
     ? undefined
-    : computeWorkAreaColumns(viewport, sidebarPreference, companionVisible ? panels.companion : 0, detailsPreference)
+    : computeWorkAreaColumns(viewport, sidebarPreference, companionVisible ? panels.companion : 0, detailsPreference, sidebarVisible)
   const cols = workAreaCols ?? computeColumns(viewport, sidebarPreference, detailsPreference)
   const colsRef = useRef(cols)
   colsRef.current = cols
@@ -192,12 +188,13 @@ export function AppFrame({
         ? `${cols.sidebar}px minmax(0, 1fr) ${cols.details}px`
         : `${cols.sidebar}px minmax(0, 1fr) ${workAreaCols?.companion ?? 0}px ${cols.details}px` }}
       data-sidebar-collapsed={sidebarCollapsed || undefined}
+      data-sidebar-hidden={!sidebarVisible || undefined}
       data-details-collapsed={cols.details === 0 || undefined}
       data-work-area-active={activeWorkArea}
       data-work-area-companion-visible={companionVisible || undefined}
       data-dragging={dragging || undefined}
     >
-      <div className={css.sidebarCol}>
+      <div className={css.sidebarCol} data-shell-sidebar-hidden={!sidebarVisible || undefined} aria-hidden={!sidebarVisible || undefined} {...(!sidebarVisible ? { inert: '' } : {})}>
         {/* Render-site slot call with live concession output: a closed
             sidebar keeps the mounted slot at the compact-rail width, and the
             component sees its rendered state as owner params decided here
@@ -208,32 +205,28 @@ export function AppFrame({
           width: cols.sidebar,
         })}
       </div>
-      {activeWorkArea === undefined ? (
-        <>
-          {/* Both column occupants stay at fixed tree positions from first
-              paint — no loading gate: a bare status line reads worse than
-              the shell's own pending rendering. The conversation
-              is session-maybe; the strict details entry naturally renders
-              empty while no session is current. */}
-          <CenterColumn>{renderSlot('conversation', {})}</CenterColumn>
-          <DetailsColumn>{renderSlot('details', {})}</DetailsColumn>
-        </>
-      ) : (
-        <>
-          <WorkAreaColumn>
-            {renderSlot('shell.workArea', { id: activeWorkArea }, { only: activeWorkArea })}
-          </WorkAreaColumn>
-          {companionVisible && <CompanionColumn>
-            {renderSlot('conversation', {})}
-          </CompanionColumn>}
-          {companionVisible && <DetailsColumn>{renderSlot('details', {})}</DetailsColumn>}
-        </>
-      )}
+      <WorkAreaColumn active={activeWorkArea !== undefined}>
+        {activeWorkArea !== undefined && renderSlot('shell.workArea', {
+          id: activeWorkArea,
+          conversation: {
+            visible: companionVisible,
+            setVisible: (visible) => { actions.setWorkAreaConversationVisible(activeWorkArea, visible) },
+          },
+          sidebar: {
+            visible: sidebarVisible,
+            setVisible: (visible) => { actions.setWorkAreaSidebarVisible(activeWorkArea, visible) },
+          },
+        }, { only: activeWorkArea })}
+      </WorkAreaColumn>
+      <CompanionColumn companion={activeWorkArea !== undefined}>
+        {conversationMounted && renderSlot('conversation', {})}
+      </CompanionColumn>
+      <DetailsColumn>{conversationMounted && renderSlot('details', {})}</DetailsColumn>
       <div className={css.overlayLayer} data-shell-overlay>
         {renderSlot('shell.overlay', {})}
       </div>
       {/* The collapsed rail is fixed-width: no resize handle while closed. */}
-      {!sidebarCollapsed && <DragHandle side="sidebar" left={cols.sidebar} onStart={onSidebarStart} onDrag={onSidebarDrag} onEnd={onDragEnd} />}
+      {sidebarVisible && !sidebarCollapsed && <DragHandle side="sidebar" left={cols.sidebar} onStart={onSidebarStart} onDrag={onSidebarDrag} onEnd={onDragEnd} />}
       {activeWorkArea !== undefined && companionVisible && (workAreaCols?.companion ?? 0) > 0 && <DragHandle side="companion" left={cols.sidebar + (workAreaCols?.workArea ?? 0)} onStart={onCompanionStart} onDrag={onCompanionDrag} onEnd={onDragEnd} />}
       {cols.details > 0 && <DragHandle side="details" left={viewport - cols.details} onStart={onDetailsStart} onDrag={onDetailsDrag} onEnd={onDragEnd} />}
     </div>
