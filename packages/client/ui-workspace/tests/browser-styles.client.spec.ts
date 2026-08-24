@@ -113,4 +113,9 @@ describe('WorkspaceBrowser.module.css list', () => {
     expect(declarations('.rail .iconButton')?.get('width')).toBe('36px')
     expect(declarations('.rail .search')?.get('width')).toBe('36px')
   })
+
+  it('removes flex growth when the session body is explicitly collapsed', () => {
+    expect(declarations('.listAreaCollapsed')?.get('flex')).toBe('0 0 auto')
+    expect(declarations('.listAreaCollapsed')?.get('overflow')).toBe('hidden')
+  })
 })

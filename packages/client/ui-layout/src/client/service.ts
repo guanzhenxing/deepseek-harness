@@ -9,6 +9,7 @@
  * declared action set, delivered as the registration's bound actions.
  */
 import type { BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import type { createLayoutStore } from './stores.ts'
 
 /** The layout store's bound action set (framework-baked, draft params peeled). */
@@ -27,11 +28,20 @@ export interface ILayout {
   openDetails(): void
   /** Close the details panel. */
   closeDetails(): void
+  /** Activate a registered root-scope work area. Unknown ids throw. */
+  openWorkArea(id: string, options?: { conversationVisible?: boolean }): void
+  /** Close this work area when it remains active; stale ids are ignored. */
+  closeWorkArea(id: string): void
+  /** Show or hide the native conversation companion for this active work area. */
+  setWorkAreaConversationVisible(id: string, visible: boolean): void
 }
 
 /** Cross-plugin panel-action face (ctx.layout). */
 export class LayoutController implements ILayout {
   #panels: PanelActions | undefined
+  #slots: SlotRegistry | undefined
+  #disposeWorkAreaSubscription: (() => void) | undefined
+  #activeWorkArea: string | undefined
 
   /**
    * Adopt the root entry's bound store actions. Called from the root
@@ -42,6 +52,26 @@ export class LayoutController implements ILayout {
    */
   attachPanels(actions: PanelActions): void {
     this.#panels = actions
+  }
+
+  /**
+   * Watch current `shell.workArea` winners so unload and HMR cannot leave a
+   * selected id whose contribution has disappeared.
+   * @param slots - root slot registry supplied by the layout plugin.
+   */
+  attachWorkAreas(slots: SlotRegistry): void {
+    this.#disposeWorkAreaSubscription?.()
+    this.#slots = slots
+    const reconcile = () => { this.#reconcileWorkArea() }
+    this.#disposeWorkAreaSubscription = slots.subscribe('shell.workArea', reconcile)
+    reconcile()
+  }
+
+  /** Detach work-area observation during layout-plugin disposal. */
+  detachWorkAreas(): void {
+    this.#disposeWorkAreaSubscription?.()
+    this.#disposeWorkAreaSubscription = undefined
+    this.#slots = undefined
   }
 
   /** Toggle the sidebar panel (closed ⟷ contract default width). */
@@ -59,11 +89,43 @@ export class LayoutController implements ILayout {
     this.#require().closeDetails()
   }
 
+  /** Activate a registered work area, optionally hiding its native companion. */
+  openWorkArea(id: string, options: { conversationVisible?: boolean } = {}): void {
+    if (!this.#hasWorkArea(id)) throw new Error(`layout: unknown work area "${id}"`)
+    this.#activeWorkArea = id
+    this.#require().openWorkArea(id, options.conversationVisible ?? true)
+  }
+
+  /** Close this id only, so a stale plugin callback cannot close a newer area. */
+  closeWorkArea(id: string): void {
+    if (this.#activeWorkArea === id) this.#activeWorkArea = undefined
+    this.#require().closeWorkArea(id)
+  }
+
+  /** Change companion visibility only while this id remains active. */
+  setWorkAreaConversationVisible(id: string, visible: boolean): void {
+    this.#require().setWorkAreaConversationVisible(id, visible)
+  }
+
   #require(): PanelActions {
     // Callers are UI gestures, which cannot fire before the root entry
     // rendered (the inject hook runs in its first render) — reaching this
     // unwired is a boot-order bug, not a race to tolerate.
     if (this.#panels === undefined) throw new Error('layout: panel actions not wired (root entry not mounted)')
     return this.#panels
+  }
+
+  #hasWorkArea(id: string): boolean {
+    return this.#slots?.entriesOfSlot('shell.workArea').some(entry => entry.options.id === id) === true
+  }
+
+  #reconcileWorkArea(): void {
+    const actions = this.#panels
+    if (actions === undefined) return
+    const active = this.#activeWorkArea
+    if (active !== undefined && !this.#hasWorkArea(active)) {
+      actions.closeWorkArea(active)
+      this.#activeWorkArea = undefined
+    }
   }
 }

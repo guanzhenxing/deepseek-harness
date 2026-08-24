@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CENTER_MIN, clampWidth, computeColumns,
-  DETAILS_DEFAULT, DETAILS_MIN, SIDEBAR_COLLAPSED, SIDEBAR_DEFAULT, SIDEBAR_MIN,
+  CENTER_MIN, clampWidth, computeColumns, computeWorkAreaColumns,
+  DETAILS_DEFAULT, DETAILS_MIN, SIDEBAR_COLLAPSED, SIDEBAR_DEFAULT, SIDEBAR_MIN, WORK_AREA_MIN,
 } from '@deepseek-ai/dsh-client-ui-layout/src/client/columns.ts'
 
 // Numeric preference form (0 = closed); helpers keep the scenario names readable.
@@ -91,5 +91,19 @@ describe('computeColumns — degenerate viewports', () => {
     // Reaches step 3's auto-close with the compact rail sidebar.
     expect(computeColumns(500, closed(300), open(DETAILS_DEFAULT)))
       .toEqual({ sidebar: SIDEBAR_COLLAPSED, center: 500 - SIDEBAR_COLLAPSED, details: 0 })
+  })
+})
+
+describe('computeWorkAreaColumns', () => {
+  it('concedes details before the native companion while preserving the work-area floor', () => {
+    const cols = computeWorkAreaColumns(1_100, SIDEBAR_DEFAULT, 420, DETAILS_DEFAULT)
+    expect(cols.workArea).toBeGreaterThanOrEqual(WORK_AREA_MIN)
+    expect(cols.details).toBe(0)
+  })
+
+  it('allocates no companion width when the native conversation is hidden', () => {
+    const cols = computeWorkAreaColumns(1_280, SIDEBAR_DEFAULT, 0, 0)
+    expect(cols.companion).toBe(0)
+    expect(cols.workArea).toBe(1_000)
   })
 })
