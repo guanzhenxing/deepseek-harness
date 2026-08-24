@@ -37,6 +37,17 @@ export const DETAILS_MIN = 300
 export const DETAILS_MAX = 520
 /** Details width before any user drag. */
 export const DETAILS_DEFAULT = 360
+/** Work-area companion conversation drag clamp floor. */
+export const COMPANION_MIN = 320
+/** Work-area companion conversation drag clamp ceiling. */
+export const COMPANION_MAX = 620
+/** Work-area companion conversation width before a user drag. */
+export const COMPANION_DEFAULT = 420
+/** Minimum width reserved for the active plugin work area. */
+export const WORK_AREA_MIN = 400
+
+/** Resolved widths for an active work area. */
+export interface WorkAreaColumns extends Columns { workArea: number; companion: number }
 
 /**
  * Clamp a panel width into its contract range.
@@ -74,4 +85,34 @@ export function computeColumns(viewport: number, sidebar: number, details: numbe
   // Step 3: auto-close details (derived — preferences untouched); center
   // absorbs any remaining deficit (may drop below CENTER_MIN).
   return { sidebar: s, center: Math.max(0, viewport - s), details: 0 }
+}
+
+/**
+ * Solve the four-column work-area layout. Details concedes first, then the
+ * native conversation companion. The selected plugin work area receives the
+ * remaining center width and may fall below its floor only after both optional
+ * columns are exhausted.
+ * @param viewport - available frame width in px.
+ * @param sidebar - sidebar width preference in px (0 = closed).
+ * @param companion - native conversation companion preference (0 = hidden).
+ * @param details - details preference in px (0 = closed).
+ * @returns resolved sidebar, work-area, companion, and details widths.
+ */
+export function computeWorkAreaColumns(viewport: number, sidebar: number, companion: number, details: number): WorkAreaColumns {
+  const s = sidebar === 0 ? SIDEBAR_COLLAPSED : clampWidth(sidebar, SIDEBAR_MIN, SIDEBAR_MAX)
+  let c = companion === 0 ? 0 : clampWidth(companion, COMPANION_MIN, COMPANION_MAX)
+  let d = details === 0 ? 0 : clampWidth(details, DETAILS_MIN, DETAILS_MAX)
+  let workArea = viewport - s - c - d
+
+  if (workArea < WORK_AREA_MIN && d > 0) {
+    const deficit = WORK_AREA_MIN - workArea
+    d = deficit >= d - DETAILS_MIN ? 0 : d - deficit
+    workArea = viewport - s - c - d
+  }
+  if (workArea < WORK_AREA_MIN && c > 0) {
+    const deficit = WORK_AREA_MIN - workArea
+    c = Math.max(COMPANION_MIN, c - deficit)
+    workArea = viewport - s - c - d
+  }
+  return { sidebar: s, center: Math.max(0, workArea), workArea: Math.max(0, workArea), companion: c, details: d }
 }

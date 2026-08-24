@@ -10,6 +10,10 @@ function fakePanels(): PanelActions {
     setNarrow: vi.fn(),
     openDetails: vi.fn(),
     closeDetails: vi.fn(),
+    setCompanion: vi.fn(),
+    openWorkArea: vi.fn(),
+    closeWorkArea: vi.fn(),
+    setWorkAreaConversationVisible: vi.fn(),
   }
 }
 
@@ -48,5 +52,25 @@ describe('LayoutController', () => {
 
     expect(stale.toggleSidebar).not.toHaveBeenCalled()
     expect(fresh.toggleSidebar).toHaveBeenCalledTimes(1)
+  })
+
+  it('validates work-area activation against live slot winners', () => {
+    const service = new LayoutController()
+    const panels = fakePanels()
+    service.attachPanels(panels)
+    const slots = {
+      entriesOfSlot: vi.fn(() => [{ options: { id: 'example.editor' } }]),
+      subscribe: vi.fn(() => () => {}),
+    } as never
+    service.attachWorkAreas(slots)
+
+    service.openWorkArea('example.editor', { conversationVisible: false })
+    service.setWorkAreaConversationVisible('example.editor', true)
+    service.closeWorkArea('stale.editor')
+
+    expect(panels.openWorkArea).toHaveBeenCalledWith('example.editor', false)
+    expect(panels.setWorkAreaConversationVisible).toHaveBeenCalledWith('example.editor', true)
+    expect(panels.closeWorkArea).toHaveBeenCalledWith('stale.editor')
+    expect(() => { service.openWorkArea('unknown') }).toThrow(/unknown work area/)
   })
 })

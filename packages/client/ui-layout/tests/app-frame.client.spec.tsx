@@ -63,6 +63,7 @@ function mountFrame() {
     if (key === 'sidebar') return <div data-testid="sidebar-content" />
     if (key === 'conversation') return <div data-testid="center-content" />
     if (key === 'details') return <div data-testid="details-content" />
+    if (key === 'shell.workArea') return <div data-testid="work-area-content" />
     if (key === 'conversation.empty') return <div data-testid="empty-content" />
     return <div data-testid="other-content" />
   }) as AppFrameProps['renderSlot']
@@ -209,6 +210,19 @@ describe('AppFrame', () => {
     expect(slotCalls.map(c => c.key)).toContain('conversation')
     expect(slotCalls.map(c => c.key)).toContain('details')
   })
+
+  it('renders a selected work area beside one native conversation and unmounts the session trees when hidden', () => {
+    const { instance, getByTestId, queryByTestId } = mountFrame()
+    act(() => { instance.actions.openWorkArea('example.editor', true) })
+    expect(getByTestId('work-area-content')).toBeTruthy()
+    expect(getByTestId('center-content')).toBeTruthy()
+    expect(getByTestId('details-content')).toBeTruthy()
+    act(() => { instance.actions.setWorkAreaConversationVisible('example.editor', false) })
+    expect(getByTestId('work-area-content')).toBeTruthy()
+    expect(queryByTestId('center-content')).toBeNull()
+    expect(queryByTestId('details-content')).toBeNull()
+  })
+
 
   it('ignores unselected states and closes only when the Session id changes', () => {
     const { frame, instance, rerenderFrame } = mountFrame()
