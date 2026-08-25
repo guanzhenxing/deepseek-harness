@@ -67,9 +67,9 @@ function hookOf<T>(inst: { subscribe: (fn: () => void) => () => void; getSnapsho
 function mountFrame() {
   window.innerWidth = frameWidth // first-render viewport source before the observer fires
   const instance = createLayoutStore().create()
-  const slotCalls: { key: string; props: unknown }[] = []
-  const renderSlot = ((key: string, owner: object) => {
-    slotCalls.push({ key, props: owner })
+  const slotCalls: { key: string; props: unknown; options: unknown }[] = []
+  const renderSlot = ((key: string, owner: object, options: unknown) => {
+    slotCalls.push({ key, props: owner, options })
     if (key === 'sidebar') return <div data-testid="sidebar-content" />
     if (key === 'conversation') return <ConversationProbe />
     if (key === 'details') return <div data-testid="details-content" />
@@ -78,7 +78,7 @@ function mountFrame() {
       const share = owner as { id: string; conversation: { visible: boolean; setVisible(visible: boolean): void } }
       return (
         <div data-testid="companion-header">
-          <button data-testid="companion-header-toggle" onClick={() => share.conversation.setVisible(false)} />
+          <button data-testid="companion-header-toggle" onClick={() => { share.conversation.setVisible(false) }} />
         </div>
       )
     }
@@ -246,12 +246,13 @@ describe('AppFrame', () => {
   })
 
   it('renders the companion-header seat only in work-area mode with the visibility share', () => {
-    const { frame, instance, getByTestId, queryByTestId } = mountFrame()
+    const { frame, instance, slotCalls, getByTestId, queryByTestId } = mountFrame()
     // No work area = no header seat (upstream-identical chrome).
     expect(queryByTestId('companion-header')).toBeNull()
     act(() => { instance.actions.openWorkArea('example.editor', true) })
     const header = getByTestId('companion-header')
     expect(header).toBeTruthy()
+    expect(slotCalls.filter(c => c.key === 'shell.workArea.companionHeader').at(-1)!.options).toEqual({ only: 'example.editor' })
     // The seat's share drives the same per-work-area preference the owner uses.
     act(() => { getByTestId('companion-header-toggle').click() })
     expect(instance.getSnapshot().workAreaConversationVisible).toBe(false)

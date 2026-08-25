@@ -98,7 +98,7 @@ ctx.layout.openWorkArea('example.editor')
 
 `AppFrame` 将 `shell.workArea` 加入子声明和 `PropsRenderSlots` 授权。当 `activeId` 已定义时，它调用 `renderSlot('shell.workArea', owner, { only: activeId })`；它不会在没有 `only` 的情况下调用 list renderer，因为那会渲染全部已注册工作区域。工作区域子树可随激活挂载和卸载。现有 `renderSlot('conversation', {})` 仍是唯一的对话渲染调用，并在 CSS grid 于普通列和伴随列之间移动它时保持同一 React 树位置。
 
-没有活动工作区域时，当前的 sidebar / conversation / details 布局保持不变。存在活动工作区域且伴随栏可见时，逻辑顺序为 sidebar / work area / conversation / details。details 首先让步并自动关闭，从而保留现有策略。随后伴随对话保持在 `ui-layout` 所有的最小、默认与最大宽度范围内，工作区域获得余下的中心宽度。在更窄的 frame 中，现有 sidebar 自动收起仍会应用，details 保持关闭，工作区域可先于伴随对话被压缩。`sidebarVisible: false` 则使用零宽、`inert` 且 `aria-hidden` 的侧边栏列，不会改变用户保存的侧边栏偏好。shell 提供原生的分隔线、调整大小手柄和可见性控制，因此插件不会因漏做自身开关而困住用户。插件仅为在自己的工具栏中镜像操作而接收可见性回调；插件不选择断点或原始列宽。
+没有活动工作区域时，当前的 sidebar / conversation / details 布局保持不变。存在活动工作区域且伴随栏可见时，逻辑顺序为 sidebar / work area / conversation / details。details 首先让步并自动关闭，从而保留现有策略。随后伴随对话保持在 `ui-layout` 所有的最小、默认与最大宽度范围内，工作区域获得余下的中心宽度。在更窄的 frame 中，现有 sidebar 自动收起仍会应用，details 保持关闭，工作区域可先于伴随对话被压缩。`sidebarVisible: false` 则使用零宽、`inert` 且 `aria-hidden` 的侧边栏列，不会改变用户保存的侧边栏偏好。shell 提供原生分隔线和调整大小手柄；工作区域 entry 接收可见性回调，但不能选择断点或原始列宽。可选的 `shell.workArea.companionHeader` entry 使用其工作区域 id，并且只会在该 id 活动且伴随栏可见时渲染。frame 不提供内建 header 控件。
 
 伴随栏隐藏时，`AppFrame` 不会在零宽可交互树中渲染 `conversation` 或 `details` 占用方。再次显示时会重新渲染相同的已注册占用方，绝不会生成第二份。只要注册仍存活，会话作用域 store 就继续由 slot runtime 所有并缓存，因此权威对话状态和草稿会保留；组件局部的滚动、焦点、选择或已打开 popover 状态可能重置，且不承诺跨显式隐藏保留。关闭带有可见伴随栏的工作区域只改变 grid 放置，因此会话树保持挂载。
 
@@ -113,6 +113,7 @@ details 列继续与唯一的对话挂载配对。隐藏伴随栏会关闭 detai
 | 变更 | 所属文件或包 | 必需工作 |
 |---|---|---|
 | 工作区域 slot 与公共类型 | `packages/client/ui-layout/src/client/index.ts` | 添加 `shell.workArea`、`WorkAreaOwnerProps`、子声明和渲染授权。 |
+| 可选伴随栏 header | `packages/client/ui-layout/src/client/index.ts`、`AppFrame.tsx` | 添加 `shell.workArea.companionHeader`；按活动工作区域 id 过滤 entry，并且不提供内建控件。 |
 | 激活与清理 | `packages/client/ui-layout/src/client/service.ts`、`stores.ts` | 添加受 id 保护的 action、注册对账、伴随栏可见性和临时宽度状态。 |
 | 布局渲染 | `packages/client/ui-layout/src/client/AppFrame.tsx`、`AppFrame.module.css`、`columns.ts` | 渲染选中的工作区域，保持一次对话挂载，增加分栏布局、控制与让步。 |
 | 布局验证 | `packages/client/ui-layout/tests/*` | 覆盖注册、服务语义、store action、布局、渲染次数、卸载和 HMR 形态替换。 |

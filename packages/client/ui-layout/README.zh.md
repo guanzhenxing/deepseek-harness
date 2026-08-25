@@ -11,7 +11,7 @@ kind: "package-reference"
 
 本包提供 Web GUI 的外壳布局：一个三栏 AppFrame，带可缩放的侧栏与详情面板；一条让步链，在空间不足时先收缩详情栏、随后自动关闭它；以及 `ctx.layout` 面板几何服务，供其他插件调用以打开或关闭详情栏。它还承载主题呈现器，把解析后的配色方案、别名 token、正文字号与 `theme-color` 元数据投影到 document。需要标准窗口外观时选择它；面板几何是瞬时的，重新加载即重置。
 
-没有激活工作区域时，AppFrame 保持普通的侧边栏／会话／详情组合；框架的一次 `register()` 调用在内建子槽位之外还声明 root-list `shell.workArea`。`ctx.layout.openWorkArea(id)` 会选择一个已注册 id，并将其贡献与唯一原生会话并排渲染；`conversationVisible: false` 可让伴随栏初始隐藏，`sidebarVisible: false` 则创建沉浸式工作区域而不改变用户的侧边栏偏好。`setWorkAreaConversationVisible()` 可隐藏或恢复伴随栏；隐藏时会卸载会话与详情树，而不是留下一个不活跃的重复实例。`setWorkAreaSidebarVisible()` 会以零宽度隐藏仍挂载的侧边栏，并移除其交互和辅助功能访问路径；关闭工作区域后恢复普通侧边栏状态。普通会话与可见伴随栏之间的切换仅改变 grid 放置，不会重挂会话树。`closeWorkArea(id)` 会核验 id，卸载当前所选 slot 贡献也会清除它。
+没有激活工作区域时，AppFrame 保持普通的侧边栏／会话／详情组合；框架的一次 `register()` 调用在内建子槽位之外还声明 root-list `shell.workArea` 和 `shell.workArea.companionHeader`。`ctx.layout.openWorkArea(id)` 会选择一个已注册 id，并将其贡献与唯一原生会话并排渲染；`conversationVisible: false` 可让伴随栏初始隐藏，`sidebarVisible: false` 则创建沉浸式工作区域而不改变用户的侧边栏偏好。`setWorkAreaConversationVisible()` 可隐藏或恢复伴随栏；隐藏时会卸载会话与详情树，而不是留下一个不活跃的重复实例。`setWorkAreaSidebarVisible()` 会以零宽度隐藏仍挂载的侧边栏，并移除其交互和辅助功能访问路径；关闭工作区域后恢复普通侧边栏状态。普通会话与可见伴随栏之间的切换仅改变 grid 放置，不会重挂会话树。`shell.workArea.companionHeader` 是可选的插件 chrome，位于可见伴随栏顶部；其 entry 使用活动工作区域的 id，因此其他工作区域的控件不会渲染。`closeWorkArea(id)` 会核验 id，卸载当前所选 slot 贡献也会清除它。
 
 ## 目录
 
