@@ -13,7 +13,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { PanelActions } from './service.ts'
-import { AppFrame } from './AppFrame.tsx'
+import { AppFrame, bindCompanionHeaderServices } from './AppFrame.tsx'
 import { createLayoutStore } from './stores.ts'
 import { LayoutController } from './service.ts'
 import { ThemePresenter } from './theme-presenter.ts'
@@ -134,6 +134,14 @@ export const inject = ['slots', 'theme', 'locale']
  */
 export function apply(ctx: ClientContext): void {
   const layout = new LayoutController()
+  // Work-area companion header: its "new session" button reads the optional
+  // workspaces service lazily at click time (absent service = inert button).
+  ctx.effect(() => {
+    bindCompanionHeaderServices(() => {
+      ctx.get('workspaces')?.startSession()
+    })
+    return () => bindCompanionHeaderServices(undefined)
+  }, 'ui-layout: companion header services')
   ctx.effect(() => {
     const disposeService = ctx.reflect.provide('layout', layout)
     const disposeRegistration = ctx.slots.register({
