@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CENTER_MIN, clampWidth, computeColumns, computeWorkAreaColumns,
-  DETAILS_DEFAULT, DETAILS_MIN, SIDEBAR_COLLAPSED, SIDEBAR_DEFAULT, SIDEBAR_MIN, WORK_AREA_MIN,
+  CENTER_MIN, clampWidth, companionCeiling, computeColumns, computeWorkAreaColumns,
+  COMPANION_MIN, DETAILS_DEFAULT, DETAILS_MIN, SIDEBAR_COLLAPSED, SIDEBAR_DEFAULT, SIDEBAR_MIN, WORK_AREA_MIN,
 } from '@deepseek-ai/dsh-client-ui-layout/src/client/columns.ts'
 
 // Numeric preference form (0 = closed); helpers keep the scenario names readable.
@@ -110,5 +110,23 @@ describe('computeWorkAreaColumns', () => {
   it('removes the sidebar width for an immersive work area without changing the sidebar preference', () => {
     const cols = computeWorkAreaColumns(1_280, SIDEBAR_DEFAULT, 0, 0, false)
     expect(cols).toMatchObject({ sidebar: 0, workArea: 1_280, companion: 0, details: 0 })
+  })
+
+  it('a companion preference wider than the frame shrinks back through arbitration', () => {
+    // Stored on a 5120 frame, reopened on 1280 with the sidebar hidden: the
+    // solver concedes until only the work-area reserve is left.
+    const cols = computeWorkAreaColumns(1_280, SIDEBAR_DEFAULT, 4_720, 0, false)
+    expect(cols).toMatchObject({ workArea: WORK_AREA_MIN, companion: 880, details: 0 })
+  })
+})
+
+describe('companionCeiling', () => {
+  it('tracks the viewport minus the work-area reserve on any screen size', () => {
+    expect(companionCeiling(1_512)).toBe(1_512 - WORK_AREA_MIN)
+    expect(companionCeiling(5_120)).toBe(5_120 - WORK_AREA_MIN)
+  })
+
+  it('never drops below the companion floor on narrow frames', () => {
+    expect(companionCeiling(300)).toBe(COMPANION_MIN)
   })
 })

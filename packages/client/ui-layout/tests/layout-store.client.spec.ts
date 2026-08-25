@@ -8,8 +8,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createLayoutStore } from '@deepseek-ai/dsh-client-ui-layout/src/client/stores.ts'
 import {
-  DETAILS_DEFAULT, DETAILS_MAX, DETAILS_MIN,
-  SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN,
+  COMPANION_MIN, DETAILS_DEFAULT, DETAILS_MAX, DETAILS_MIN,
+  SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN, WORK_AREA_MIN,
 } from '@deepseek-ai/dsh-client-ui-layout/src/client/columns.ts'
 
 const PERSIST_KEY = 'dsh.layout.panels'
@@ -48,6 +48,23 @@ describe('createLayoutStore', () => {
     expect(store.getSnapshot().details).toBe(DETAILS_MIN)
     actions.setDetails(9999)
     expect(store.getSnapshot().details).toBe(DETAILS_MAX)
+  })
+
+  it('setCompanion clamps into the drag-time ceiling, never a fixed constant', () => {
+    const { store, actions } = createLayoutStore().create()
+    actions.setCompanion(1, 1_512 - WORK_AREA_MIN)
+    expect(store.getSnapshot().companion).toBe(COMPANION_MIN)
+    actions.setCompanion(9999, 1_512 - WORK_AREA_MIN)
+    expect(store.getSnapshot().companion).toBe(1_512 - WORK_AREA_MIN)
+    // A wider frame accepts a wider drag the same way.
+    actions.setCompanion(9999, 5_120 - WORK_AREA_MIN)
+    expect(store.getSnapshot().companion).toBe(5_120 - WORK_AREA_MIN)
+  })
+
+  it('setCompanion keeps the floor when the passed ceiling collapses below it', () => {
+    const { store, actions } = createLayoutStore().create()
+    actions.setCompanion(500, 0)
+    expect(store.getSnapshot().companion).toBe(COMPANION_MIN)
   })
 
   it('toggleSidebar flips closed <-> contract default (drag width forgotten)', () => {
