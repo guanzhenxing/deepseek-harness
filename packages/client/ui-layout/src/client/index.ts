@@ -77,11 +77,10 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'shell.workArea': { kind: 'list'; scope: 'root'; owner: WorkAreaOwnerProps }
     /**
      * Control strip at the top of the work-area companion column. A generic
-     * seat: the ACTIVE work area's own UI registers here (collapse toggles,
-     * actions — the frame ships no built-in controls) and receives the same
-     * companion visibility share the work-area owner gets. Rendered only
-     * while a plugin work area owns the frame with the companion visible;
-     * absent entries render nothing (upstream-identical).
+     * seat: an entry uses its work area's id and receives the same companion
+     * visibility share. The frame renders only the active id while its
+     * companion is visible; it ships no built-in controls. Absent entries
+     * render nothing (upstream-identical).
      */
     'shell.workArea.companionHeader': { kind: 'list'; scope: 'root'; owner: WorkAreaCompanionHeaderOwnerProps }
     /**
