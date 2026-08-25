@@ -245,7 +245,7 @@ export function AppFrame({
         {activeWorkArea !== undefined && conversationMounted && renderSlot('shell.workArea.companionHeader', {
           id: activeWorkArea,
           conversation: { visible: companionVisible, setVisible: onCompanionSetVisible },
-        })}
+        }, { only: activeWorkArea })}
         {conversationMounted && renderSlot('conversation', {})}
       </CompanionColumn>
       <DetailsColumn>{conversationMounted && <SessionProvider>{renderSlot('details', {})}</SessionProvider>}</DetailsColumn>
