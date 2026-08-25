@@ -10,7 +10,7 @@
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { PanelActions } from './service.ts'
-import { AppFrame, bindCompanionHeaderServices } from './AppFrame.tsx'
+import { AppFrame } from './AppFrame.tsx'
 import { createLayoutStore } from './stores.ts'
 import { LayoutController } from './service.ts'
 import { ThemePresenter } from './theme-presenter.ts'
@@ -76,6 +76,15 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'shell.workArea': { kind: 'list'; scope: 'root'; owner: WorkAreaOwnerProps }
     /**
+     * Control strip at the top of the work-area companion column. A generic
+     * seat: the ACTIVE work area's own UI registers here (collapse toggles,
+     * actions — the frame ships no built-in controls) and receives the same
+     * companion visibility share the work-area owner gets. Rendered only
+     * while a plugin work area owns the frame with the companion visible;
+     * absent entries render nothing (upstream-identical).
+     */
+    'shell.workArea.companionHeader': { kind: 'list'; scope: 'root'; owner: WorkAreaCompanionHeaderOwnerProps }
+    /**
      * Frame-wide floating layer, above every column and outside their scroll
      * containers. Deliberately generic and unowned by any feature: a badge, a
      * toast stack or a status pill all belong here, and entries order among
@@ -120,6 +129,15 @@ export interface WorkAreaOwnerProps {
   sidebar: { visible: boolean; setVisible(visible: boolean): void }
 }
 
+/** Companion-header owner share: the active work-area id plus the same
+ * id-guarded companion visibility control the work-area owner receives. */
+export interface WorkAreaCompanionHeaderOwnerProps {
+  /** Stable id of the active work area. */
+  id: string
+  /** Native conversation companion state and id-guarded control. */
+  conversation: { visible: boolean; setVisible(visible: boolean): void }
+}
+
 /** Required services (cordis fiber inject — the loader passes all module exports as an object plugin). */
 export const inject = ['slots', 'theme']
 
@@ -131,14 +149,6 @@ export const inject = ['slots', 'theme']
  */
 export function apply(ctx: ClientContext): void {
   const layout = new LayoutController()
-  // Work-area companion header: its "new session" button reads the optional
-  // workspaces service lazily at click time (absent service = inert button).
-  ctx.effect(() => {
-    bindCompanionHeaderServices(() => {
-      ctx.get('workspaces')?.startSession()
-    })
-    return () => bindCompanionHeaderServices(undefined)
-  }, 'ui-layout: companion header services')
   ctx.effect(() => {
     const disposeService = ctx.reflect.provide('layout', layout)
     const disposeRegistration = ctx.slots.register({
@@ -148,6 +158,7 @@ export function apply(ctx: ClientContext): void {
         'conversation': { kind: 'single', scope: 'session-maybe' },
         'details': { kind: 'single', scope: 'session' },
         'shell.workArea': { kind: 'list', scope: 'root' },
+        'shell.workArea.companionHeader': { kind: 'list', scope: 'root' },
         'shell.overlay': { kind: 'list', scope: 'root' },
       },
       // Exclusive store: the factory itself — the framework instantiates per

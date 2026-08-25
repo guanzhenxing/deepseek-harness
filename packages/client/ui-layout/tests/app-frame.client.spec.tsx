@@ -72,6 +72,14 @@ function mountFrame() {
     if (key === 'conversation') return <ConversationProbe />
     if (key === 'details') return <div data-testid="details-content" />
     if (key === 'shell.workArea') return <div data-testid="work-area-content" />
+    if (key === 'shell.workArea.companionHeader') {
+      const share = owner as { id: string; conversation: { visible: boolean; setVisible(visible: boolean): void } }
+      return (
+        <div data-testid="companion-header">
+          <button data-testid="companion-header-toggle" onClick={() => share.conversation.setVisible(false)} />
+        </div>
+      )
+    }
     if (key === 'conversation.empty') return <div data-testid="empty-content" />
     return <div data-testid="other-content" />
   }) as AppFrameProps['renderSlot']
@@ -199,27 +207,19 @@ describe('AppFrame', () => {
     expect(queryByTestId('details-content')).toBeNull()
   })
 
-  it('shows the companion header only in work-area mode and collapse notifies the owner', () => {
-    const events: Array<{ id?: string; visible?: boolean }> = []
-    const onEvent = (e: Event): void => { events.push((e as CustomEvent).detail) }
-    window.addEventListener('dsh-work-area-companion', onEvent)
-    try {
-      const { frame, instance } = mountFrame()
-      // No work area = no header (upstream-identical chrome).
-      expect(frame.querySelector('[data-companion-header]')).toBeNull()
-      act(() => { instance.actions.openWorkArea('example.editor', true) })
-      const header = frame.querySelector('[data-companion-header]')
-      expect(header).not.toBeNull()
-      expect(header!.querySelector('[data-companion-new-session]')).not.toBeNull()
-      // Collapse: flips the same per-work-area preference and notifies the owner id.
-      act(() => { (header!.querySelector('[data-companion-collapse]') as HTMLElement).click() })
-      expect(instance.getSnapshot().workAreaConversationVisible).toBe(false)
-      expect(events).toEqual([{ id: 'example.editor', visible: false }])
-      // Hidden companion unmounts the header together with the conversation.
-      expect(frame.querySelector('[data-companion-header]')).toBeNull()
-    } finally {
-      window.removeEventListener('dsh-work-area-companion', onEvent)
-    }
+  it('renders the companion-header seat only in work-area mode with the visibility share', () => {
+    const { frame, instance, getByTestId, queryByTestId } = mountFrame()
+    // No work area = no header seat (upstream-identical chrome).
+    expect(queryByTestId('companion-header')).toBeNull()
+    act(() => { instance.actions.openWorkArea('example.editor', true) })
+    const header = getByTestId('companion-header')
+    expect(header).toBeTruthy()
+    // The seat's share drives the same per-work-area preference the owner uses.
+    act(() => { getByTestId('companion-header-toggle').click() })
+    expect(instance.getSnapshot().workAreaConversationVisible).toBe(false)
+    // Hidden companion unmounts the header together with the conversation.
+    expect(queryByTestId('companion-header')).toBeNull()
+    expect(frame.hasAttribute('data-work-area-companion-visible')).toBe(false)
   })
 
   it('keeps the native conversation mounted while work-area layout moves its host', () => {
