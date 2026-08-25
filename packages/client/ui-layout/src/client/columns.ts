@@ -39,12 +39,21 @@ export const DETAILS_MAX = 520
 export const DETAILS_DEFAULT = 360
 /** Work-area companion conversation drag clamp floor. */
 export const COMPANION_MIN = 320
-/** Work-area companion conversation drag clamp ceiling. */
-export const COMPANION_MAX = 620
 /** Work-area companion conversation width before a user drag. */
 export const COMPANION_DEFAULT = 420
 /** Minimum width reserved for the active plugin work area. */
 export const WORK_AREA_MIN = 400
+
+/**
+ * Companion drag ceiling for one frame: whatever the viewport can spare
+ * beside the work-area reserve at drag time. No fixed constant — screens of
+ * any size can widen the companion up to what actually fits.
+ * @param viewport - available frame width in px.
+ * @returns the ceiling in px, never below COMPANION_MIN.
+ */
+export function companionCeiling(viewport: number): number {
+  return Math.max(COMPANION_MIN, viewport - WORK_AREA_MIN)
+}
 
 /** Resolved widths for an active work area. */
 export interface WorkAreaColumns extends Columns { workArea: number; companion: number }
@@ -103,7 +112,7 @@ export function computeWorkAreaColumns(
   viewport: number, sidebar: number, companion: number, details: number, sidebarVisible = true,
 ): WorkAreaColumns {
   const s = sidebarVisible ? (sidebar === 0 ? SIDEBAR_COLLAPSED : clampWidth(sidebar, SIDEBAR_MIN, SIDEBAR_MAX)) : 0
-  let c = companion === 0 ? 0 : clampWidth(companion, COMPANION_MIN, COMPANION_MAX)
+  let c = companion === 0 ? 0 : clampWidth(companion, COMPANION_MIN, Number.POSITIVE_INFINITY)
   let d = details === 0 ? 0 : clampWidth(details, DETAILS_MIN, DETAILS_MAX)
   let workArea = viewport - s - c - d
 
