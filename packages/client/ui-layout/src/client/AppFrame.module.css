@@ -156,3 +156,34 @@
 .overlayLayer > * {
   pointer-events: auto;
 }
+
+/* Work-area companion header (fork capability): above the native conversation,
+   rendered only while a plugin work area owns the frame. */
+.companionHead {
+  height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+.companionHeadBtn {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+}
+.companionHeadBtn:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
