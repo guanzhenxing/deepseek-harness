@@ -32,6 +32,32 @@ function CompanionColumn(props: { companion: boolean; children?: ReactNode }) {
   return <div className={css.companionCol} data-shell-native-conversation-companion={props.companion || undefined}>{props.children}</div>
 }
 
+/** Optional workspaces-service action for the companion header; bound by apply().
+ * Absent service = inert button (the header itself stays — collapse is local state). */
+let companionStartSession: (() => void) | undefined
+
+/** Bind (or clear) the new-session action used by the work-area companion header. */
+export function bindCompanionHeaderServices(start: (() => void) | undefined): void {
+  companionStartSession = start
+}
+
+/**
+ * Work-area companion header (fork capability): a slim control strip above the
+ * native conversation, rendered ONLY while a plugin work area owns the frame —
+ * no work area = not rendered (upstream-identical). Collapse flips the same
+ * per-work-area companion preference the owner's setVisible uses and notifies
+ * the owner via a window CustomEvent ('dsh-work-area-companion', {id, visible});
+ * "new session" goes through the optional workspaces service.
+ */
+function CompanionHeader(props: { onCollapse(): void }) {
+  return (
+    <div className={css.companionHead} data-companion-header="">
+      <button type="button" className={css.companionHeadBtn} data-companion-collapse="" title="Collapse companion" aria-label="Collapse companion" onClick={props.onCollapse}>«</button>
+      <button type="button" className={css.companionHeadBtn} data-companion-new-session="" title="New session" aria-label="New session" onClick={() => companionStartSession?.()}>＋</button>
+    </div>
+  )
+}
+
 /** Details column grid item; only an explicitly hidden companion unmounts its subtree. */
 function DetailsColumn(props: { children?: ReactNode }) {
   return <div className={css.detailsCol}>{props.children}</div>
@@ -176,6 +202,13 @@ export function AppFrame({
   const onCompanionDrag = useCallback((dx: number) => {
     actions.setCompanion(companionBase.current - dx)
   }, [actions])
+  // Companion header collapse (work-area mode only): same preference the owner
+  // controls, plus a CustomEvent so the owner can sync its own toggle state.
+  const onCompanionCollapse = useCallback(() => {
+    if (activeWorkArea === undefined) return
+    actions.setWorkAreaConversationVisible(activeWorkArea, false)
+    window.dispatchEvent(new CustomEvent('dsh-work-area-companion', { detail: { id: activeWorkArea, visible: false } }))
+  }, [actions, activeWorkArea])
   const onDetailsDrag = useCallback((dx: number) => {
     actions.setDetails(detailsBase.current - dx)
   }, [actions])
@@ -219,6 +252,7 @@ export function AppFrame({
         }, { only: activeWorkArea })}
       </WorkAreaColumn>
       <CompanionColumn companion={activeWorkArea !== undefined}>
+        {activeWorkArea !== undefined && conversationMounted && <CompanionHeader onCollapse={onCompanionCollapse} />}
         {conversationMounted && renderSlot('conversation', {})}
       </CompanionColumn>
       <DetailsColumn>{conversationMounted && renderSlot('details', {})}</DetailsColumn>
