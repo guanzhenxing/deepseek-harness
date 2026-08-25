@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import { computeColumns, computeWorkAreaColumns, SIDEBAR_AUTO_COLLAPSE, SIDEBAR_DEFAULT } from './columns.ts'
+import { companionCeiling, computeColumns, computeWorkAreaColumns, SIDEBAR_AUTO_COLLAPSE, SIDEBAR_DEFAULT } from './columns.ts'
 import type { createLayoutStore } from './stores.ts'
 import css from './AppFrame.module.css'
 
@@ -174,8 +174,8 @@ export function AppFrame({
   }, [actions])
   const onCompanionStart = useCallback(() => { companionBase.current = workAreaCols?.companion ?? 0; setDragging(true) }, [workAreaCols])
   const onCompanionDrag = useCallback((dx: number) => {
-    actions.setCompanion(companionBase.current - dx)
-  }, [actions])
+    actions.setCompanion(companionBase.current - dx, companionCeiling(viewport))
+  }, [actions, viewport])
   // Companion-header slot share: the active work area's own UI (registered
   // into 'shell.workArea.companionHeader') receives the same id-guarded
   // companion visibility control the work-area owner gets. The frame stays

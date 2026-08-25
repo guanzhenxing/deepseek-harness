@@ -9,7 +9,7 @@
  */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-runtime/client'
 import {
-  clampWidth, COMPANION_DEFAULT, COMPANION_MAX, COMPANION_MIN, DETAILS_DEFAULT, DETAILS_MAX, DETAILS_MIN,
+  clampWidth, COMPANION_DEFAULT, COMPANION_MIN, DETAILS_DEFAULT, DETAILS_MAX, DETAILS_MIN,
   SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN,
 } from './columns.ts'
 
@@ -38,7 +38,7 @@ type LayoutState = {
 type LayoutActions = {
   setSidebar: (draft: LayoutState, px: number) => void
   setDetails: (draft: LayoutState, px: number) => void
-  setCompanion: (draft: LayoutState, px: number) => void
+  setCompanion: (draft: LayoutState, px: number, ceiling: number) => void
   toggleSidebar: (draft: LayoutState) => void
   setNarrow: (draft: LayoutState, narrow: boolean) => void
   openDetails: (draft: LayoutState) => void
@@ -74,7 +74,9 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
     actions: {
       setSidebar: (d, px: number) => { d.sidebar = clampWidth(px, SIDEBAR_MIN, SIDEBAR_MAX) },
       setDetails: (d, px: number) => { d.details = clampWidth(px, DETAILS_MIN, DETAILS_MAX) },
-      setCompanion: (d, px: number) => { d.companion = clampWidth(px, COMPANION_MIN, COMPANION_MAX) },
+      setCompanion: (d, px: number, ceiling: number) => {
+        d.companion = clampWidth(px, COMPANION_MIN, Math.max(COMPANION_MIN, ceiling))
+      },
       // Narrow toggles flip only the override: the width preference survives
       // untouched, so re-widening restores the pre-squeeze layout.
       toggleSidebar: (d) => {
