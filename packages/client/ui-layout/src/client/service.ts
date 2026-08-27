@@ -51,6 +51,16 @@ export interface ILayout {
    * @param visible - whether the sidebar is visible.
    */
   setWorkAreaSidebarVisible(id: string, visible: boolean): void
+  /**
+   * Resize the native conversation companion for this active work area —
+   * the programmatic equivalent of the drag handle. The store clamps to the
+   * companion floor and the frame's solver concedes anything the viewport
+   * cannot spare beside the work-area reserve, so oversized requests settle
+   * at "as wide as fits" instead of overflowing.
+   * @param id - work-area id that owns the resize request; inactive ids are ignored.
+   * @param px - requested companion width in px.
+   */
+  setWorkAreaCompanionWidth(id: string, px: number): void
 }
 
 /** Cross-plugin panel-action face (ctx.layout). */
@@ -127,6 +137,18 @@ export class LayoutController implements ILayout {
   /** Change sidebar visibility only while this id remains active. */
   setWorkAreaSidebarVisible(id: string, visible: boolean): void {
     this.#require().setWorkAreaSidebarVisible(id, visible)
+  }
+
+  /**
+   * Resize the companion only while this id remains active. The drag ceiling
+   * is left unbounded on this write path: the store still clamps to the
+   * companion floor, and the frame's solver re-clamps against the live
+   * viewport every frame (the concession chain), which is the same bound the
+   * drag handle computes at gesture time.
+   */
+  setWorkAreaCompanionWidth(id: string, px: number): void {
+    if (this.#activeWorkArea !== id) return
+    this.#require().setCompanion(px, Number.POSITIVE_INFINITY)
   }
 
   #require(): PanelActions {
