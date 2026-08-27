@@ -139,16 +139,9 @@ export class LayoutController implements ILayout {
     this.#require().setWorkAreaSidebarVisible(id, visible)
   }
 
-  /**
-   * Resize the companion only while this id remains active. The drag ceiling
-   * is left unbounded on this write path: the store still clamps to the
-   * companion floor, and the frame's solver re-clamps against the live
-   * viewport every frame (the concession chain), which is the same bound the
-   * drag handle computes at gesture time.
-   */
+  /** Resize the companion only while this id remains active. */
   setWorkAreaCompanionWidth(id: string, px: number): void {
-    if (this.#activeWorkArea !== id) return
-    this.#require().setCompanion(px, Number.POSITIVE_INFINITY)
+    this.#require().setWorkAreaCompanionWidth(id, px)
   }
 
   #require(): PanelActions {

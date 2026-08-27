@@ -47,6 +47,7 @@ type LayoutActions = {
   closeWorkArea: (draft: LayoutState, id: string) => void
   setWorkAreaConversationVisible: (draft: LayoutState, id: string, visible: boolean) => void
   setWorkAreaSidebarVisible: (draft: LayoutState, id: string, visible: boolean) => void
+  setWorkAreaCompanionWidth: (draft: LayoutState, id: string, px: number) => void
 }
 
 /**
@@ -116,6 +117,13 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
       setWorkAreaSidebarVisible: (d, id: string, visible: boolean) => {
         if (d.activeWorkArea !== id) return
         d.workAreaSidebarVisible = visible
+      },
+      // The programmatic resize passes no ceiling: the frame's solver
+      // re-clamps the stored preference against the live viewport, the
+      // same bound the drag handle computes at gesture time.
+      setWorkAreaCompanionWidth: (d, id: string, px: number) => {
+        if (d.activeWorkArea !== id) return
+        d.companion = clampWidth(px, COMPANION_MIN, Number.POSITIVE_INFINITY)
       },
     },
   })
