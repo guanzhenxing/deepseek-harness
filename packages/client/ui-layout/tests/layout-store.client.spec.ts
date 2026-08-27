@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createLayoutStore } from '@deepseek-ai/dsh-client-ui-layout/src/client/stores.ts'
 import {
-  COMPANION_MIN, DETAILS_DEFAULT, DETAILS_MAX, DETAILS_MIN,
+  COMPANION_DEFAULT, COMPANION_MIN, DETAILS_DEFAULT, DETAILS_MAX, DETAILS_MIN,
   SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN, WORK_AREA_MIN,
 } from '@deepseek-ai/dsh-client-ui-layout/src/client/columns.ts'
 
@@ -65,6 +65,21 @@ describe('createLayoutStore', () => {
     const { store, actions } = createLayoutStore().create()
     actions.setCompanion(500, 0)
     expect(store.getSnapshot().companion).toBe(COMPANION_MIN)
+  })
+
+  it('setWorkAreaCompanionWidth guards by id and clamps to the floor only', () => {
+    const { store, actions } = createLayoutStore().create()
+    actions.setWorkAreaCompanionWidth('example.editor', 900)
+    expect(store.getSnapshot().companion).toBe(COMPANION_DEFAULT)
+    actions.openWorkArea('example.editor', true)
+    actions.setWorkAreaCompanionWidth('stale.editor', 900)
+    expect(store.getSnapshot().companion).toBe(COMPANION_DEFAULT)
+    actions.setWorkAreaCompanionWidth('example.editor', 1)
+    expect(store.getSnapshot().companion).toBe(COMPANION_MIN)
+    // No fixed ceiling: the frame's solver bounds the rendered width against
+    // the live viewport, so the preference stores the request verbatim.
+    actions.setWorkAreaCompanionWidth('example.editor', 9999)
+    expect(store.getSnapshot().companion).toBe(9999)
   })
 
   it('toggleSidebar flips closed <-> contract default (drag width forgotten)', () => {

@@ -6,16 +6,24 @@ function fakePanels(): PanelActions {
   return {
     setSidebar: vi.fn(),
     setDetails: vi.fn(),
+    setCompanion: vi.fn(),
     toggleSidebar: vi.fn(),
     setNarrow: vi.fn(),
     openDetails: vi.fn(),
     closeDetails: vi.fn(),
-    setCompanion: vi.fn(),
     openWorkArea: vi.fn(),
     closeWorkArea: vi.fn(),
     setWorkAreaConversationVisible: vi.fn(),
     setWorkAreaSidebarVisible: vi.fn(),
+    setWorkAreaCompanionWidth: vi.fn(),
   }
+}
+
+function fakeSlots() {
+  return {
+    entriesOfSlot: vi.fn(() => [{ options: { id: 'example.editor' } }]),
+    subscribe: vi.fn(() => () => {}),
+  } as never
 }
 
 describe('LayoutController', () => {
@@ -59,11 +67,7 @@ describe('LayoutController', () => {
     const service = new LayoutController()
     const panels = fakePanels()
     service.attachPanels(panels)
-    const slots = {
-      entriesOfSlot: vi.fn(() => [{ options: { id: 'example.editor' } }]),
-      subscribe: vi.fn(() => () => {}),
-    } as never
-    service.attachWorkAreas(slots)
+    service.attachWorkAreas(fakeSlots())
 
     service.openWorkArea('example.editor', { conversationVisible: false, sidebarVisible: false })
     service.setWorkAreaConversationVisible('example.editor', true)
@@ -77,22 +81,16 @@ describe('LayoutController', () => {
     expect(() => { service.openWorkArea('unknown') }).toThrow(/unknown work area/)
   })
 
-  it('resizes the companion for the active work area only; unbounded ceiling left to the solver', () => {
+  it('forwards the work-area companion resize with its owner id', () => {
     const service = new LayoutController()
     const panels = fakePanels()
     service.attachPanels(panels)
-    const slots = {
-      entriesOfSlot: vi.fn(() => [{ options: { id: 'example.editor' } }]),
-      subscribe: vi.fn(() => () => {}),
-    } as never
-    service.attachWorkAreas(slots)
+    service.attachWorkAreas(fakeSlots())
     service.openWorkArea('example.editor')
 
-    service.setWorkAreaCompanionWidth('stale.editor', 900)
-    expect(panels.setCompanion).not.toHaveBeenCalled()
-
     service.setWorkAreaCompanionWidth('example.editor', 900)
-    expect(panels.setCompanion).toHaveBeenCalledTimes(1)
-    expect(panels.setCompanion).toHaveBeenCalledWith(900, Number.POSITIVE_INFINITY)
+
+    expect(panels.setWorkAreaCompanionWidth).toHaveBeenCalledTimes(1)
+    expect(panels.setWorkAreaCompanionWidth).toHaveBeenCalledWith('example.editor', 900)
   })
 })
