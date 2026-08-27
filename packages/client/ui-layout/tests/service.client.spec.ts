@@ -76,4 +76,23 @@ describe('LayoutController', () => {
     expect(panels.closeWorkArea).toHaveBeenCalledWith('stale.editor')
     expect(() => { service.openWorkArea('unknown') }).toThrow(/unknown work area/)
   })
+
+  it('resizes the companion for the active work area only; unbounded ceiling left to the solver', () => {
+    const service = new LayoutController()
+    const panels = fakePanels()
+    service.attachPanels(panels)
+    const slots = {
+      entriesOfSlot: vi.fn(() => [{ options: { id: 'example.editor' } }]),
+      subscribe: vi.fn(() => () => {}),
+    } as never
+    service.attachWorkAreas(slots)
+    service.openWorkArea('example.editor')
+
+    service.setWorkAreaCompanionWidth('stale.editor', 900)
+    expect(panels.setCompanion).not.toHaveBeenCalled()
+
+    service.setWorkAreaCompanionWidth('example.editor', 900)
+    expect(panels.setCompanion).toHaveBeenCalledTimes(1)
+    expect(panels.setCompanion).toHaveBeenCalledWith(900, Number.POSITIVE_INFINITY)
+  })
 })
