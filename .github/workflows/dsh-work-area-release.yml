@@ -44,7 +44,7 @@ jobs:
           pnpm run release:pack --family dsh --out dist/dsh-work-area
           # Drop the upstream-identical ui-workspace tarball only when the official
           # npm registry already carries this version for its peers to resolve;
-          # until upstream publishes 0.1.2-alpha.1 the full closure must ship.
+          # otherwise the full closure must ship.
           if npm view @deepseek-ai/dsh-client-ui-workspace@"$(node -p "require('./package.json').version")" version >/dev/null 2>&1; then
             rm dist/dsh-work-area/deepseek-ai-dsh-client-ui-workspace-*.tgz
             sed -i '/dsh-client-ui-workspace/d' dist/dsh-work-area/publish-order.txt
