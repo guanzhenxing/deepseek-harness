@@ -82,6 +82,7 @@ function mountFrame() {
         </div>
       )
     }
+    if (key === 'shell.workArea.footer') return <div data-testid="work-area-footer" />
     if (key === 'conversation.empty') return <div data-testid="empty-content" />
     return <div data-testid="other-content" />
   }) as AppFrameProps['renderSlot']
@@ -259,6 +260,25 @@ describe('AppFrame', () => {
     // Hidden companion unmounts the header together with the conversation.
     expect(queryByTestId('companion-header')).toBeNull()
     expect(frame.hasAttribute('data-work-area-companion-visible')).toBe(false)
+  })
+
+  it('renders the footer seat in work-area mode and keeps it under a hidden companion', () => {
+    const { frame, instance, slotCalls, getByTestId, queryByTestId } = mountFrame()
+    // No work area = no footer seat (upstream-identical chrome).
+    expect(queryByTestId('work-area-footer')).toBeNull()
+    expect(frame.querySelector('[data-work-area-footer]')).toBeNull()
+    act(() => { instance.actions.openWorkArea('example.editor', true) })
+    expect(getByTestId('work-area-footer')).toBeTruthy()
+    expect(frame.querySelector('[data-work-area-footer]')).not.toBeNull()
+    const footerCalls = slotCalls.filter(c => c.key === 'shell.workArea.footer')
+    expect(footerCalls.at(-1)!.options).toEqual({ only: 'example.editor' })
+    expect(footerCalls.at(-1)!.props).toEqual({ id: 'example.editor' })
+    // The strip belongs to the work area, not the conversation: hiding the
+    // companion unmounts the header but keeps the footer rendered.
+    act(() => { instance.actions.setWorkAreaConversationVisible('example.editor', false) })
+    expect(getByTestId('work-area-footer')).toBeTruthy()
+    act(() => { instance.actions.closeWorkArea('example.editor') })
+    expect(queryByTestId('work-area-footer')).toBeNull()
   })
 
   it('keeps the native conversation mounted while work-area layout moves its host', () => {

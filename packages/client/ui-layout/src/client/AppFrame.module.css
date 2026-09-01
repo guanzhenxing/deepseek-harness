@@ -1,7 +1,7 @@
 .frame {
   position: relative; /* anchors the drag handles, which straddle column borders */
   display: grid;
-  grid-template-rows: 100%;
+  grid-template-rows: minmax(0, 1fr) auto;
   height: 100%;
   overflow: hidden;
   background: var(--dsw-alias-bg-base);
@@ -61,6 +61,17 @@
   min-width: 0;
   overflow: hidden;
   border-left: 1px solid var(--dsw-alias-border-l2);
+}
+
+/* Work-area footer seat: second grid row spanning the main and companion
+   columns. Only the registered entry's own chrome paints here — the frame
+   adds no border or background; with no entry the auto row stays at 0px and
+   the frame renders upstream-identical. */
+.workAreaFooter {
+  grid-row: 2;
+  grid-column: 2 / 4;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* The details subtree stays mounted at zero width, so its border must not paint

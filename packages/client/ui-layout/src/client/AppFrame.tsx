@@ -22,7 +22,7 @@ import css from './AppFrame.module.css'
 /** Full composed props: runtime share + child-slot render share + store share. */
 export type AppFrameProps =
   & PropsRuntime<'root'>
-  & PropsRenderSlots<'sidebar' | 'conversation' | 'details' | 'shell.workArea' | 'shell.workArea.companionHeader' | 'shell.overlay'>
+  & PropsRenderSlots<'sidebar' | 'conversation' | 'details' | 'shell.workArea' | 'shell.workArea.companionHeader' | 'shell.workArea.footer' | 'shell.overlay'>
   & PropsStore<ReturnType<typeof createLayoutStore>>
   & PropsLocale<'common'>
 
@@ -249,6 +249,13 @@ export function AppFrame({
         {conversationMounted && renderSlot('conversation', {})}
       </CompanionColumn>
       <DetailsColumn>{conversationMounted && <SessionProvider>{renderSlot('details', {})}</SessionProvider>}</DetailsColumn>
+      {/* The footer strip belongs to the work area, not the conversation: it
+          keeps rendering while the companion is hidden. */}
+      {activeWorkArea !== undefined && (
+        <div className={css.workAreaFooter} data-work-area-footer>
+          {renderSlot('shell.workArea.footer', { id: activeWorkArea }, { only: activeWorkArea })}
+        </div>
+      )}
       <div className={css.overlayLayer} data-shell-overlay>
         {renderSlot('shell.overlay', {})}
       </div>

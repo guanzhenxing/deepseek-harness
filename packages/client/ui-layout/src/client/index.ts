@@ -36,7 +36,7 @@ declare module '@deepseek-ai/cordis' {
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     // The 'root' entry itself is the runtime's built-in slot (declared
-    // there); these five are the frame's children, declared by the same
+    // there); these seven are the frame's children, declared by the same
     // register() call that contributes AppFrame. Session owners never pass
     // sessionId: the framework injects it as a standard prop.
     /**
@@ -86,6 +86,15 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * render nothing (upstream-identical).
      */
     'shell.workArea.companionHeader': { kind: 'list'; scope: 'root'; owner: WorkAreaCompanionHeaderOwnerProps }
+    /**
+     * Bottom strip spanning the work-area main column and its conversation
+     * companion. A generic seat: an entry uses its work area's id, and the
+     * frame renders only the active id while a work area is open — with the
+     * companion hidden included, since the strip belongs to the work area,
+     * not the conversation. It ships no built-in content. Absent entries
+     * render nothing (upstream-identical).
+     */
+    'shell.workArea.footer': { kind: 'list'; scope: 'root'; owner: WorkAreaFooterOwnerProps }
     /**
      * Frame-wide floating layer, above every column and outside their scroll
      * containers. Deliberately generic and unowned by any feature: a badge, a
@@ -140,12 +149,18 @@ export interface WorkAreaCompanionHeaderOwnerProps {
   conversation: { visible: boolean; setVisible(visible: boolean): void }
 }
 
+/** Work-area footer owner share: the active work-area id. */
+export interface WorkAreaFooterOwnerProps {
+  /** Stable id of the active work area. */
+  id: string
+}
+
 /** Required services (cordis fiber inject — the loader passes all module exports as an object plugin). */
 export const inject = ['slots', 'theme', 'locale']
 
 /**
  * Client plugin body: provide ctx.layout, then one register() call — AppFrame
- * into 'root' with the four child-slot declarations, the layout store seat,
+ * into 'root' with the seven child-slot declarations, the layout store seat,
  * and the inject hook that hands the store's bound actions to the service.
  * @param ctx - client root context.
  */
@@ -162,6 +177,7 @@ export function apply(ctx: ClientContext): void {
         'details': { kind: 'single', scope: 'session' },
         'shell.workArea': { kind: 'list', scope: 'root' },
         'shell.workArea.companionHeader': { kind: 'list', scope: 'root' },
+        'shell.workArea.footer': { kind: 'list', scope: 'root' },
         'shell.overlay': { kind: 'list', scope: 'root' },
       },
       // Exclusive store: the factory itself — the framework instantiates per

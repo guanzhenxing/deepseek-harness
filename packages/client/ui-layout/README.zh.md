@@ -11,7 +11,7 @@ kind: "package-reference"
 
 本包提供 Web GUI 的外壳布局：一个三栏 AppFrame，带可缩放的侧栏与详情面板；一条让步链，在空间不足时先收缩详情栏、随后自动关闭它；以及 `ctx.layout` 面板几何服务，供其他插件调用以打开或关闭详情栏。它还承载主题呈现器，把解析后的配色方案、别名 token、正文字号与 `theme-color` 元数据投影到 document。需要标准窗口外观时选择它；面板几何是瞬时的，重新加载即重置。
 
-没有激活工作区域时，AppFrame 保持普通的侧边栏／会话／详情组合；框架的一次 `register()` 调用在内建子槽位之外还声明 root-list `shell.workArea` 和 `shell.workArea.companionHeader`。`ctx.layout.openWorkArea(id)` 会选择一个已注册 id，并将其贡献与唯一原生会话并排渲染；`conversationVisible: false` 可让伴随栏初始隐藏，`sidebarVisible: false` 则创建沉浸式工作区域而不改变用户的侧边栏偏好。`setWorkAreaConversationVisible()` 可隐藏或恢复伴随栏；隐藏时会卸载会话与详情树，而不是留下一个不活跃的重复实例。`setWorkAreaSidebarVisible()` 会以零宽度隐藏仍挂载的侧边栏，并移除其交互和辅助功能访问路径；关闭工作区域后恢复普通侧边栏状态。`setWorkAreaCompanionWidth()` 以编程方式调整伴随栏宽度，等效于拖动手柄；它没有固定上限，过大的请求会收敛到视口在保留工作区域最小宽度之余所能腾出的宽度。普通会话与可见伴随栏之间的切换仅改变 grid 放置，不会重挂会话树。`shell.workArea.companionHeader` 是可选的插件 chrome，位于可见伴随栏顶部；其 entry 使用活动工作区域的 id，因此其他工作区域的控件不会渲染。`closeWorkArea(id)` 会核验 id，卸载当前所选 slot 贡献也会清除它。
+没有激活工作区域时，AppFrame 保持普通的侧边栏／会话／详情组合；框架的一次 `register()` 调用在内建子槽位之外还声明 root-list `shell.workArea`、`shell.workArea.companionHeader` 与 `shell.workArea.footer`。`ctx.layout.openWorkArea(id)` 会选择一个已注册 id，并将其贡献与唯一原生会话并排渲染；`conversationVisible: false` 可让伴随栏初始隐藏，`sidebarVisible: false` 则创建沉浸式工作区域而不改变用户的侧边栏偏好。`setWorkAreaConversationVisible()` 可隐藏或恢复伴随栏；隐藏时会卸载会话与详情树，而不是留下一个不活跃的重复实例。`setWorkAreaSidebarVisible()` 会以零宽度隐藏仍挂载的侧边栏，并移除其交互和辅助功能访问路径；关闭工作区域后恢复普通侧边栏状态。`setWorkAreaCompanionWidth()` 以编程方式调整伴随栏宽度，等效于拖动手柄；它没有固定上限，过大的请求会收敛到视口在保留工作区域最小宽度之余所能腾出的宽度。普通会话与可见伴随栏之间的切换仅改变 grid 放置，不会重挂会话树。`shell.workArea.companionHeader` 是可选的插件 chrome，位于可见伴随栏顶部；其 entry 使用活动工作区域的 id，因此其他工作区域的控件不会渲染。`shell.workArea.footer` 是与之对应的可选插件 chrome，作为横跨工作区域栏及其伴随栏的底部条带；它在伴随栏隐藏时也随活动工作区域的 id 渲染，缺省 entry 时框架与上游逐像素一致。`closeWorkArea(id)` 会核验 id，卸载当前所选 slot 贡献也会清除它。
 
 ## 目录
 
@@ -41,7 +41,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-一次 `register()` 调用把 `AppFrame` 贡献进运行时的内建 `'root'` 槽位，并在同一刻声明四个子槽位（`sidebar`、`conversation`、`details`、`shell.overlay`）、安放布局 store（面板几何）并接好 `ctx.layout` 面板动作服务。瞬时布局 store 以默认宽度启动侧栏、保持详情栏关闭，从不读写 `localStorage`。AppFrame 始终挂载会话与详情两栏；已连接 Session 经 `SessionProvider` 渲染。它把所选 Session 标题投影到构建配置的产品标题或本地化 `common.brand.localBuild` 回退值之上，因此 locale revision 会随根 entry 一起更新文档元数据。主题呈现器是第二个 effect：从解析后的快照做纯 DOM 写入——初始状态经 getter 读取一次，此后仅事件驱动，不经过 React。它先应用调色板、字号与 token 变量，再把渲染出的背景测量为唯一的颜色依据。
+一次 `register()` 调用把 `AppFrame` 贡献进运行时的内建 `'root'` 槽位，并在同一刻声明各子槽位（`sidebar`、`conversation`、`details`、`shell.workArea`、`shell.workArea.companionHeader`、`shell.workArea.footer`、`shell.overlay`）、安放布局 store（面板几何）并接好 `ctx.layout` 面板动作服务。瞬时布局 store 以默认宽度启动侧栏、保持详情栏关闭，从不读写 `localStorage`。AppFrame 始终挂载会话与详情两栏；已连接 Session 经 `SessionProvider` 渲染。它把所选 Session 标题投影到构建配置的产品标题或本地化 `common.brand.localBuild` 回退值之上，因此 locale revision 会随根 entry 一起更新文档元数据。主题呈现器是第二个 effect：从解析后的快照做纯 DOM 写入——初始状态经 getter 读取一次，此后仅事件驱动，不经过 React。它先应用调色板、字号与 token 变量，再把渲染出的背景测量为唯一的颜色依据。
 
 </details>
 
