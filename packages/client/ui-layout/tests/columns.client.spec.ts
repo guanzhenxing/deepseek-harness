@@ -118,6 +118,26 @@ describe('computeWorkAreaColumns', () => {
     const cols = computeWorkAreaColumns(1_280, SIDEBAR_DEFAULT, 4_720, 0, false)
     expect(cols).toMatchObject({ workArea: WORK_AREA_MIN, companion: 880, details: 0 })
   })
+
+  it('a declared reserve below the default lets the companion take the freed width', () => {
+    // A work area collapsed to a 128 residual: on a 1280 frame with the
+    // sidebar hidden an oversized companion settles at viewport − reserve.
+    const cols = computeWorkAreaColumns(1_280, SIDEBAR_DEFAULT, 4_720, 0, false, 128)
+    expect(cols).toMatchObject({ workArea: 128, companion: 1_152, details: 0 })
+  })
+
+  it('a declared reserve above the default forces details then the companion to concede earlier', () => {
+    // 1280 frame, immersive, companion 620, details open: reserve 700 keeps
+    // the work area at 700 by auto-closing details and shrinking companion.
+    const cols = computeWorkAreaColumns(1_280, SIDEBAR_DEFAULT, 620, DETAILS_DEFAULT, false, 700)
+    expect(cols).toMatchObject({ workArea: 700, details: 0, companion: 580 })
+  })
+
+  it('keeps the work area at its declared minimum under squeeze, never below', () => {
+    const cols = computeWorkAreaColumns(500, SIDEBAR_DEFAULT, 420, 0, false, 128)
+    expect(cols.workArea).toBeGreaterThanOrEqual(128)
+    expect(cols.workArea + cols.companion).toBe(500)
+  })
 })
 
 describe('companionCeiling', () => {
@@ -128,5 +148,10 @@ describe('companionCeiling', () => {
 
   it('never drops below the companion floor on narrow frames', () => {
     expect(companionCeiling(300)).toBe(COMPANION_MIN)
+  })
+
+  it('follows the active work area\'s declared reserve', () => {
+    expect(companionCeiling(1_280, 128)).toBe(1_152)
+    expect(companionCeiling(1_280, 700)).toBe(580)
   })
 })

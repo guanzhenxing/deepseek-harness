@@ -162,7 +162,9 @@ export function AppFrame({
     : panels.details
   const workAreaCols = activeWorkArea === undefined
     ? undefined
-    : computeWorkAreaColumns(viewport, sidebarPreference, companionVisible ? panels.companion : 0, detailsPreference, sidebarVisible)
+    : computeWorkAreaColumns(
+      viewport, sidebarPreference, companionVisible ? panels.companion : 0, detailsPreference, sidebarVisible, panels.workAreaReserve,
+    )
   const cols = workAreaCols ?? computeColumns(viewport, sidebarPreference, detailsPreference)
   const colsRef = useRef(cols)
   colsRef.current = cols
@@ -184,8 +186,8 @@ export function AppFrame({
   }, [actions])
   const onCompanionStart = useCallback(() => { companionBase.current = workAreaCols?.companion ?? 0; setDragging(true) }, [workAreaCols])
   const onCompanionDrag = useCallback((dx: number) => {
-    actions.setCompanion(companionBase.current - dx, companionCeiling(viewport))
-  }, [actions, viewport])
+    actions.setCompanion(companionBase.current - dx, companionCeiling(viewport, panels.workAreaReserve))
+  }, [actions, viewport, panels.workAreaReserve])
   // Companion-header slot share: the active work area's own UI (registered
   // into 'shell.workArea.companionHeader') receives the same id-guarded
   // companion visibility control the work-area owner gets. The frame stays

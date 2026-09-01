@@ -1,6 +1,6 @@
 # Agent Note: 插件工作区域
 
-Status: proposed
+Status: implemented
 
 [English](2026-08-24-plugin-work-areas.md) | 中文
 
@@ -10,9 +10,9 @@ DeepSeek Harness 允许 client 插件向现有视图添加界面元素、替换�
 
 这个缺口并非知识管理产品特有。编辑器、笔记本、终端仪表盘、产物预览、数据分析工具及其他插件，都可能需要把自己的主内容放在原生对话旁边。若无 shell 所有的组合方式，每个消费方只能用 overlay 覆盖应用、基于服务实现缩减版聊天 client，或复制私有对话 UI。
 
-## 提案
+## 决策
 
-交付一项变更：由 shell 所有的插件工作区域，以及作为其唯一伴随栏的现有原生对话。该变更不包含产品品牌、知识管理行为、下游存储 marker 或产品专属默认值。
+fork 交付一个由 shell 所有的插件工作区域，以现有原生对话作为其唯一伴随栏：一个根作用域 list slot、一个受 id 保护的 `ctx.layout` 激活接口，以及由 `AppFrame` 所有的列分配。该变更不包含产品品牌、知识管理行为、下游存储 marker 或产品专属默认值；无工作区域激活时，client 与上游逐像素一致。
 
 ### 定义与不变量
 
@@ -54,7 +54,7 @@ interface WorkAreaOwnerProps {
 }
 ```
 
-`ctx.layout` 增加供启动按钮、命令和快捷键使用的命令式激活接口：
+`ctx.layout` 携带供启动按钮、命令和快捷键使用的命令式激活接口：
 
 ```ts
 interface ILayout {
@@ -62,6 +62,8 @@ interface ILayout {
   closeWorkArea(id: string): void
   setWorkAreaConversationVisible(id: string, visible: boolean): void
   setWorkAreaSidebarVisible(id: string, visible: boolean): void
+  setWorkAreaCompanionWidth(id: string, px: number): void
+  setWorkAreaReserve(id: string, px: number): void
 }
 ```
 
@@ -70,9 +72,11 @@ interface ILayout {
 - `id` 是工作区域的 list entry id。若当前没有该 id 的活动 `shell.workArea` 胜出项，`openWorkArea` 就抛出异常。
 - 打开一个 id 会替换此前活动的工作区域。再次打开活动 id 会更新请求的伴随栏与侧边栏可见性。
 - `conversationVisible` 和 `sidebarVisible` 均默认为 `true`。两者都是布局状态，不是插件所有的 CSS 惯例。
-- 当另一个工作区域随后变为活动项时，`closeWorkArea`、`setWorkAreaConversationVisible` 和 `setWorkAreaSidebarVisible` 是受 id 保护的空操作。这使陈旧回调与卸载清理无法关闭或改变替代项。
+- 当另一个工作区域随后变为活动项时，`closeWorkArea`、`setWorkAreaConversationVisible` 和 `setWorkAreaSidebarVisible` 是受 id 保护的空操作。这使陈旧回调与卸载清理无法关闭或改变替代项。守卫位于 store 内、按活动 id 判定；控制器只做转发，不自行追踪活动状态。
 - 若活动 id 在下一次注册对账时缺失，布局会关闭该工作区域。已经成为当前胜出项的同 id HMR 替代项可保留激活状态；持续缺失的 id 不能保持活动。
-- 活动 id、伴随栏可见性、侧边栏可见性和拖拽后的伴随栏宽度均为临时状态。刷新后从普通对话布局开始。
+- 活动 id、伴随栏可见性、侧边栏可见性、拖拽后的伴随栏宽度和声明的 reserve 均为临时状态。刷新后从普通对话布局开始。
+- `setWorkAreaCompanionWidth` 是拖拽手柄的编程等价物。它没有固定上限：存储的偏好不受钳制，由 frame 的求解器对照活动视口让步，过大的请求收敛到视口在保留工作区域底线之余所能腾出的宽度。
+- `setWorkAreaReserve` 声明活动工作区域实际所需的最小宽度——即让步求解为工作区域列保住的底线。未声明时为契约 `WORK_AREA_MIN` 的 400px，在打开、关闭（以及两个区域直接切换）时重置，写入钳制为非负整数，同时约束求解与拖拽上限。把自己收起成残条的工作区域声明它真正需要的更小底线，从而把腾出的宽度交给伴随栏。
 
 第三方注册只使用现有公共机制：
 
@@ -98,7 +102,9 @@ ctx.layout.openWorkArea('example.editor')
 
 `AppFrame` 将 `shell.workArea` 加入子声明和 `PropsRenderSlots` 授权。当 `activeId` 已定义时，它调用 `renderSlot('shell.workArea', owner, { only: activeId })`；它不会在没有 `only` 的情况下调用 list renderer，因为那会渲染全部已注册工作区域。工作区域子树可随激活挂载和卸载。现有 `renderSlot('conversation', {})` 仍是唯一的对话渲染调用，并在 CSS grid 于普通列和伴随列之间移动它时保持同一 React 树位置。
 
-没有活动工作区域时，当前的 sidebar / conversation / details 布局保持不变。存在活动工作区域且伴随栏可见时，逻辑顺序为 sidebar / work area / conversation / details。details 首先让步并自动关闭，从而保留现有策略。随后伴随对话保持在 `ui-layout` 所有的最小、默认与最大宽度范围内，工作区域获得余下的中心宽度。在更窄的 frame 中，现有 sidebar 自动收起仍会应用，details 保持关闭，工作区域可先于伴随对话被压缩。`sidebarVisible: false` 则使用零宽、`inert` 且 `aria-hidden` 的侧边栏列，不会改变用户保存的侧边栏偏好。shell 提供原生分隔线和调整大小手柄；工作区域 entry 接收可见性回调，但不能选择断点或原始列宽。可选的 `shell.workArea.companionHeader` entry 使用其工作区域 id，并且只会在该 id 活动且伴随栏可见时渲染。frame 不提供内建 header 控件。
+没有活动工作区域时，sidebar / conversation / details 布局保持不变。存在活动工作区域且伴随栏可见时，逻辑顺序为 sidebar / work area / conversation / details。details 首先让步并自动关闭，从而保留现有策略。伴随对话保持其契约下限与默认宽度；其上限是拖拽时视口在保留工作区域底线之余所能腾出的宽度——没有固定最大值。工作区域获得余下的中心宽度，最后让步，并在 details 与伴随栏耗尽之后保住在其声明的 reserve 之上。在更窄的 frame 中，现有 sidebar 自动收起仍会应用，details 保持关闭，工作区域可先于伴随对话被压缩。`sidebarVisible: false` 则使用零宽、`inert` 且 `aria-hidden` 的侧边栏列，不会改变用户保存的侧边栏偏好。shell 提供原生分隔线和调整大小手柄；工作区域 entry 接收可见性回调，但不能选择断点或原始列宽。
+
+可选的 `shell.workArea.companionHeader` entry 使用其工作区域 id，并且只会在该 id 活动且伴随栏可见时渲染；frame 不提供内建 header 控件。可选的 `shell.workArea.footer` entry 在第二条 grid 行中为活动 id 渲染，横跨工作区域列及其伴随栏——伴随栏隐藏时同样渲染，因为该条带属于工作区域而非对话。缺省 footer entry 时不渲染任何内容，该行塌缩为零高，frame 与上游逐像素一致；frame 不为两个座位添加边框、背景或内建内容。
 
 伴随栏隐藏时，`AppFrame` 不会在零宽可交互树中渲染 `conversation` 或 `details` 占用方。再次显示时会重新渲染相同的已注册占用方，绝不会生成第二份。只要注册仍存活，会话作用域 store 就继续由 slot runtime 所有并缓存，因此权威对话状态和草稿会保留；组件局部的滚动、焦点、选择或已打开 popover 状态可能重置，且不承诺跨显式隐藏保留。关闭带有可见伴随栏的工作区域只改变 grid 放置，因此会话树保持挂载。
 
@@ -108,39 +114,29 @@ details 列继续与唯一的对话挂载配对。隐藏伴随栏会关闭 detai
 
 ### 包与文件所有权
 
-预期实现范围有意保持狭窄：
+已交付的实现范围有意保持狭窄：
 
-| 变更 | 所属文件或包 | 必需工作 |
+| 变更 | 所属文件或包 | 工作内容 |
 |---|---|---|
-| 工作区域 slot 与公共类型 | `packages/client/ui-layout/src/client/index.ts` | 添加 `shell.workArea`、`WorkAreaOwnerProps`、子声明和渲染授权。 |
-| 可选伴随栏 header | `packages/client/ui-layout/src/client/index.ts`、`AppFrame.tsx` | 添加 `shell.workArea.companionHeader`；按活动工作区域 id 过滤 entry，并且不提供内建控件。 |
-| 激活与清理 | `packages/client/ui-layout/src/client/service.ts`、`stores.ts` | 添加受 id 保护的 action、注册对账、伴随栏可见性和临时宽度状态。 |
-| 布局渲染 | `packages/client/ui-layout/src/client/AppFrame.tsx`、`AppFrame.module.css`、`columns.ts` | 渲染选中的工作区域，保持一次对话挂载，增加分栏布局、控制与让步。 |
+| 工作区域 slot 与公共类型 | `packages/client/ui-layout/src/client/index.ts` | `shell.workArea`、`WorkAreaOwnerProps`、子声明和渲染授权。 |
+| 可选伴随栏 header | `packages/client/ui-layout/src/client/index.ts`、`AppFrame.tsx` | `shell.workArea.companionHeader`；按活动工作区域 id 过滤 entry，不提供内建控件。 |
+| 可选工作区域 footer | `packages/client/ui-layout/src/client/index.ts`、`AppFrame.tsx`、`AppFrame.module.css` | `shell.workArea.footer`；为活动 id 在横跨工作区域与伴随栏的第二条 grid 行渲染，无内建内容。 |
+| 激活与清理 | `packages/client/ui-layout/src/client/service.ts`、`stores.ts` | 受 id 保护的 action、注册对账、伴随栏可见性、临时宽度与 reserve 状态。 |
+| 布局渲染 | `packages/client/ui-layout/src/client/AppFrame.tsx`、`AppFrame.module.css`、`columns.ts` | 在一次对话挂载旁渲染选中的工作区域，分栏布局、控制与带可让渡 reserve 的让步求解。 |
 | 布局验证 | `packages/client/ui-layout/tests/*` | 覆盖注册、服务语义、store action、布局、渲染次数、卸载和 HMR 形态替换。 |
-| Shell 约定文档 | `packages/client/ui-layout/README.md` 及对侧文件、runtime slot 注释、生成的 slot 目录 | 记录新座位，不改变 slot 引擎。 |
+| Shell 约定文档 | `packages/client/ui-layout/README.md` 及对侧文件、runtime slot 注释、生成的 slot 目录 | 记录各座位与方法，不改变 slot 引擎。 |
 
-该变更不要求改变 `ui-slots`、`ui-renderer` 或 `ui-conversation` 的行为。只有仓库工具要求时，这些包才可接收注释、类型图或生成文档更新。若提议的实现增加第二个对话 renderer、导出私有对话组件，或削弱子 slot 授权，就超出范围。
+该变更不要求改变 `ui-slots`、`ui-renderer` 或 `ui-conversation` 的行为。只有仓库工具要求时，这些包才接收注释、类型图或生成文档更新。增加第二个对话 renderer、导出私有对话组件或削弱子 slot 授权的实现均超出范围。
 
 ### 下游适配器
 
-下游知识管理插件在 `shell.workArea` 中注册整个工作台，替换原有 `shell.overlay` 注册，并调用 `ctx.layout.openWorkArea('innovation.pkm')`。其 Agent 开关委托给 `setWorkAreaConversationVisible`；现有笔记操作继续由插件所有。只有原生伴随栏通过集成测试后，插件才删除缩减版消息 renderer、模型菜单、命令菜单、审批提示和自定义 composer。品牌 mark、“PKM 工作台”名称、笔记注入和快捷键策略仍留在下游。
+下游知识管理插件在 `shell.workArea` 中注册整个工作台，替换原有 `shell.overlay` 注册，并经 `ctx.layout.openWorkArea('innovation.pkm')` 打开。其 Agent 开关委托给 `setWorkAreaConversationVisible`；编辑器收起时经 `setWorkAreaReserve` 与 `setWorkAreaCompanionWidth` 把宽度交给伴随栏；其状态栏注册进 `shell.workArea.footer`，从而横跨工作区域列与伴随栏。现有笔记操作继续由插件所有；缩减版消息 renderer、模型菜单、命令菜单、审批提示和自定义 composer 已被原生伴随栏取代。品牌 mark、工作台名称、笔记注入和快捷键策略仍留在下游。
 
 由于伴随栏就是普通 `conversation` 占用方，fork rebase 到后续 DSH 版本后，消息卡片、工具树、审批、提问、附件、模型、命令或 composer 的升级会被自动消费。这是源码复用，不是源码复制。它不承诺 rebase 无冲突：`AppFrame`、`conversation` slot 约定或列策略的变化可能需要适配，而组合测试就是兼容性门禁。
 
-### 交付顺序
-
-fork 按以下顺序携带小型、可审查提交：
-
-1. 添加 `shell.workArea` 约定和受 id 保护的布局状态。
-2. 在唯一原生对话旁渲染选中的工作区域，并添加布局控制。
-3. 添加组合生命周期、对话身份、details 与 HMR 替换测试；更新配对文档。
-4. 集成一个不含产品品牌的外部样例插件。
-
-该系列必须能独立构建和发布。
-
 ## 考虑过的替代方案
 
-**公开 `ConversationSurface` 或任意 `SlotOutlet`。** 第一版否决。它为当前通过声明授予独占子项所有权的 slot 引入第二个渲染权限，并立即产生两个实时 composer、审批控件、提问控件、附件 hub、document 监听器、滚动 store 和 details 目标的正确性问题。未来的 portable-surface 原语需要自身的跨领域需求与生命周期模型；本提案不会为解决一个布局用例而削弱当前 slot 不变量。
+**公开 `ConversationSurface` 或任意 `SlotOutlet`。** 第一版否决。它为当前通过声明授予独占子项所有权的 slot 引入第二个渲染权限，并立即产生两个实时 composer、审批控件、提问控件、附件 hub、document 监听器、滚动 store 和 details 目标的正确性问题。未来的 portable-surface 原语需要自身的跨领域需求与生命周期模型；本设计不会为解决一个布局用例而削弱当前 slot 不变量。
 
 **导出或复制 `ConversationRoot`、消息卡片、工具与 composer 组件。** 否决。它们的 props 由私有插件 store 和注入接口组装，直接值导入违反 client 包纯度，复制则把每次上游 UI 变化变成手工合并。MIT 允许复制，但不会让复制成为合适的维护边界。
 
@@ -154,24 +150,16 @@ fork 按以下顺序携带小型、可审查提交：
 
 **在 fork 内交付原生会话浏览器 disclosure。** 于 2026-08-24 否决。fork 只交付官方 DSH 缺少的能力，不修改随附 UI；无插件工作区域激活时，client 渲染须与上游逐像素一致。由 fork 在 `ui-workspace` 内持有收起控件破坏了这一边界，且该关切并非官方 DSH 所有；fork 已把该包退回上游。仍需要收起会话区域的下游发行版在 DSH 补丁之外保留自己的适配器；出现等价官方控件时应采用上游实现，而不是并行维护。
 
+**用下游 CSS 覆盖 fork 渲染的伴随栏列。** 否决。伴随栏列是插件无法所有的 shell DOM；贴附其上的界面依赖 fork 内部标记、层叠顺序和列宽，且每次让步变化都会错位（下游实验已随其 ADR-0015 撤回）。footer 与 companion-header 座位改以公共 slot 承载同样的界面。
+
+**缩小固定工作区域底线，而非声明式 reserve。** 否决。收起后的工作区域所需最小值随其自身残宽内容（rail、文件树、收起条）变化，更小的固定常数要么裁切残宽、要么永久保留没人需要的宽度。`setWorkAreaReserve` 把这一事实交还给拥有它的工作区域，并在其关闭时重置。
+
 **打开第二个浏览器窗口。** 作为主要设计被否决。它不是嵌入式工作区域，会使焦点与生命周期复杂化，也无法解决页内编辑器或仪表盘。第二窗口可继续作为下游选项。
 
-## 验收标准
+## 测试
 
-- 第三方 client 插件可注册根作用域 `shell.workArea` list entry，并通过 `ctx.layout` 打开它，无需导入 DSH 实现文件。
-- 未知工作区域 id 会快速失败；替换、陈旧关闭调用、注册移除、插件 dispose 和 HMR 形态重新注册都会留下确定的布局状态。
-- 最多渲染一个工作区域 id，随附 `conversation` slot 在所有状态下最多渲染一次。
-- 没有活动工作区域时，当前 AppFrame 布局、sidebar 行为、对话行为、details 行为和 `shell.overlay` 顺序保持不变。
-- 存在活动工作区域时，当前会话的原生对话消息、流式、工具、审批、提问、附件、模型、命令、composer、取消与错误继续使用随附实现。
-- 隐藏和显示伴随栏时，零宽隐藏树不能提交、回答、取消、获取焦点或处理快捷键；会话状态和草稿通过现有作用域 store 恢复。
-- details 打开时在已分配布局中可见，且绝不会渲染在工作区域背后；details 与伴随栏让步会在调整大小后恢复。
-- 列调整大小、sidebar 自动收起、窄 frame、减少动态效果、浅色/深色主题、无会话 hero 状态和 `shell.overlay` 均保持可用。
-- 配对文档、包测试、组合 client 启动、类型检查、lint 与打包产物验证通过，DSH 补丁中不包含下游品牌或本地绝对路径。
+包的 client spec 钉住该约定。`columns.client.spec.ts` 覆盖让步求解——底线保持、低于与高于默认值的声明 reserve，以及拖拽上限随视口的变化。`layout-store.client.spec.ts` 覆盖初始形状、带 id 守卫的 action 写入集合，以及 reserve 生命周期：打开、关闭与区域直接切换时重置，陈旧写入被忽略。`service.client.spec.ts` 覆盖每个方法的控制器转发。`app-frame.client.spec.tsx` 覆盖渲染位置——footer 座位在伴随栏隐藏时仍随活动 id 渲染——以及拖拽序列与经 ResizeObserver 的让步。`apply.client.spec.ts` 覆盖 cordis 注册、子 slot 账目和卸载。
 
-## 风险
+## 后果
 
-- `AppFrame` 会成为能力更强的公共组合边界。宽度常量和让步顺序必须继续由 layout 所有，否则插件会产生彼此不兼容的布局。
-- 显式隐藏伴随栏可能重置组件局部视图状态。约定承诺会话与作用域 store 连续性，不承诺保留临时 DOM 状态。
-- 现有 details API 按始终存在的对话列设计。必须在实现前选择伴随栏隐藏时的行为，并以测试保护。
-- 工作区域 entry 可能在 HMR 期间崩溃或消失。现有 slot 错误边界和活动 id 对账必须让用户返回可用的对话布局。
-- 上游对根导航的重新设计可能取代 `shell.workArea`。fork 应在出现等价官方路线时删除自身补丁，而不是保留平行概念。
+插件可以在随附对话旁打开主工作区域，并在 rebase 时自动继承上游对话升级；工作区域也可以通过声明真实最小宽度，把自己不需要的宽度交给伴随栏。代价是一个能力更强的公共组合边界：宽度常量、让步顺序和 reserve 约定必须继续由 layout 所有，否则插件会产生彼此不兼容的布局。fork 相对上游 `AppFrame` 携带一份补丁，上游对根导航的重新设计可能取代它；出现等价官方路线时，fork 应删除该补丁而不是保留平行概念。显式隐藏伴随栏可能重置组件局部视图状态——约定承诺会话与作用域 store 连续性，不承诺保留临时 DOM 状态——隐藏伴随栏时的 details 行为（原子重开、随隐藏关闭）由测试钉住而非隐含。替换、陈旧回调、注册移除、插件 dispose 和 HMR 形态重新注册下的确定状态，由 id 守卫与活动 id 对账共同保证。

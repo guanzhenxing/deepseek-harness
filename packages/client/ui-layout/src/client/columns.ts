@@ -49,10 +49,11 @@ export const WORK_AREA_MIN = 400
  * beside the work-area reserve at drag time. No fixed constant — screens of
  * any size can widen the companion up to what actually fits.
  * @param viewport - available frame width in px.
+ * @param reserve - the active work area's declared minimum width in px.
  * @returns the ceiling in px, never below COMPANION_MIN.
  */
-export function companionCeiling(viewport: number): number {
-  return Math.max(COMPANION_MIN, viewport - WORK_AREA_MIN)
+export function companionCeiling(viewport: number, reserve: number = WORK_AREA_MIN): number {
+  return Math.max(COMPANION_MIN, viewport - reserve)
 }
 
 /** Resolved widths for an active work area. */
@@ -99,30 +100,32 @@ export function computeColumns(viewport: number, sidebar: number, details: numbe
 /**
  * Solve the four-column work-area layout. Details concedes first, then the
  * native conversation companion. The selected plugin work area receives the
- * remaining center width and may fall below its floor only after both optional
- * columns are exhausted.
+ * remaining center width and may fall below its declared reserve only after
+ * both optional columns are exhausted.
  * @param viewport - available frame width in px.
  * @param sidebar - sidebar width preference in px (0 = closed).
  * @param companion - native conversation companion preference (0 = hidden).
  * @param details - details preference in px (0 = closed).
  * @param sidebarVisible - whether the active work area temporarily shows the sidebar.
+ * @param reserve - the active work area's declared minimum width in px (the
+ * floor its own `setWorkAreaReserve` declared; WORK_AREA_MIN when undeclared).
  * @returns resolved sidebar, work-area, companion, and details widths.
  */
 export function computeWorkAreaColumns(
-  viewport: number, sidebar: number, companion: number, details: number, sidebarVisible = true,
+  viewport: number, sidebar: number, companion: number, details: number, sidebarVisible = true, reserve = WORK_AREA_MIN,
 ): WorkAreaColumns {
   const s = sidebarVisible ? (sidebar === 0 ? SIDEBAR_COLLAPSED : clampWidth(sidebar, SIDEBAR_MIN, SIDEBAR_MAX)) : 0
   let c = companion === 0 ? 0 : clampWidth(companion, COMPANION_MIN, Number.POSITIVE_INFINITY)
   let d = details === 0 ? 0 : clampWidth(details, DETAILS_MIN, DETAILS_MAX)
   let workArea = viewport - s - c - d
 
-  if (workArea < WORK_AREA_MIN && d > 0) {
-    const deficit = WORK_AREA_MIN - workArea
+  if (workArea < reserve && d > 0) {
+    const deficit = reserve - workArea
     d = deficit >= d - DETAILS_MIN ? 0 : d - deficit
     workArea = viewport - s - c - d
   }
-  if (workArea < WORK_AREA_MIN && c > 0) {
-    const deficit = WORK_AREA_MIN - workArea
+  if (workArea < reserve && c > 0) {
+    const deficit = reserve - workArea
     c = Math.max(COMPANION_MIN, c - deficit)
     workArea = viewport - s - c - d
   }

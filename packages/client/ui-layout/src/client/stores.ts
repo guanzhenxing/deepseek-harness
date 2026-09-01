@@ -10,7 +10,7 @@
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
 import {
   clampWidth, COMPANION_DEFAULT, COMPANION_MIN, DETAILS_DEFAULT, DETAILS_MAX, DETAILS_MIN,
-  SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN,
+  SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN, WORK_AREA_MIN,
 } from './columns.ts'
 
 /**
@@ -27,6 +27,7 @@ type LayoutState = {
   activeWorkArea: string | undefined
   workAreaConversationVisible: boolean
   workAreaSidebarVisible: boolean
+  workAreaReserve: number
   narrow: boolean
   narrowExpanded: boolean
 }
@@ -48,6 +49,7 @@ type LayoutActions = {
   setWorkAreaConversationVisible: (draft: LayoutState, id: string, visible: boolean) => void
   setWorkAreaSidebarVisible: (draft: LayoutState, id: string, visible: boolean) => void
   setWorkAreaCompanionWidth: (draft: LayoutState, id: string, px: number) => void
+  setWorkAreaReserve: (draft: LayoutState, id: string, px: number) => void
 }
 
 /**
@@ -69,6 +71,7 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
       activeWorkArea: undefined,
       workAreaConversationVisible: false,
       workAreaSidebarVisible: false,
+      workAreaReserve: WORK_AREA_MIN,
       narrow: false,
       narrowExpanded: false,
     }),
@@ -100,6 +103,7 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
         d.activeWorkArea = id
         d.workAreaConversationVisible = conversationVisible
         d.workAreaSidebarVisible = sidebarVisible
+        d.workAreaReserve = WORK_AREA_MIN
         d.details = 0
       },
       closeWorkArea: (d, id: string) => {
@@ -107,6 +111,7 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
         d.activeWorkArea = undefined
         d.workAreaConversationVisible = false
         d.workAreaSidebarVisible = false
+        d.workAreaReserve = WORK_AREA_MIN
         d.details = 0
       },
       setWorkAreaConversationVisible: (d, id: string, visible: boolean) => {
@@ -124,6 +129,13 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
       setWorkAreaCompanionWidth: (d, id: string, px: number) => {
         if (d.activeWorkArea !== id) return
         d.companion = clampWidth(px, COMPANION_MIN, Number.POSITIVE_INFINITY)
+      },
+      // The declared reserve is the work area's own floor in the frame's
+      // concession solve; openWorkArea/closeWorkArea reset it to the
+      // contract default, so a stale declaration cannot leak across areas.
+      setWorkAreaReserve: (d, id: string, px: number) => {
+        if (d.activeWorkArea !== id) return
+        d.workAreaReserve = Math.max(0, Math.round(px))
       },
     },
   })

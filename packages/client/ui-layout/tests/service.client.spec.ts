@@ -16,6 +16,7 @@ function fakePanels(): PanelActions {
     setWorkAreaConversationVisible: vi.fn(),
     setWorkAreaSidebarVisible: vi.fn(),
     setWorkAreaCompanionWidth: vi.fn(),
+    setWorkAreaReserve: vi.fn(),
   }
 }
 
@@ -92,5 +93,18 @@ describe('LayoutController', () => {
 
     expect(panels.setWorkAreaCompanionWidth).toHaveBeenCalledTimes(1)
     expect(panels.setWorkAreaCompanionWidth).toHaveBeenCalledWith('example.editor', 900)
+  })
+
+  it('forwards the work-area reserve declaration with its owner id', () => {
+    const service = new LayoutController()
+    const panels = fakePanels()
+    service.attachPanels(panels)
+    service.attachWorkAreas(fakeSlots())
+    service.openWorkArea('example.editor')
+
+    service.setWorkAreaReserve('example.editor', 128)
+
+    expect(panels.setWorkAreaReserve).toHaveBeenCalledTimes(1)
+    expect(panels.setWorkAreaReserve).toHaveBeenCalledWith('example.editor', 128)
   })
 })

@@ -246,6 +246,17 @@ describe('AppFrame', () => {
     expect(queryByTestId('details-content')).toBeNull()
   })
 
+  it('a declared reserve widens the solved companion track', () => {
+    frameWidth = 1_000
+    const { frame, instance } = mountFrame()
+    act(() => { instance.actions.openWorkArea('example.editor', true, false) })
+    act(() => { instance.actions.setWorkAreaCompanionWidth('example.editor', 2_000) })
+    // Default reserve: the oversized preference settles at viewport − 400.
+    expect(tracks(frame)).toEqual([0, 600, 0])
+    act(() => { instance.actions.setWorkAreaReserve('example.editor', 128) })
+    expect(tracks(frame)).toEqual([0, 872, 0])
+  })
+
   it('renders the companion-header seat only in work-area mode with the visibility share', () => {
     const { frame, instance, slotCalls, getByTestId, queryByTestId } = mountFrame()
     // No work area = no header seat (upstream-identical chrome).

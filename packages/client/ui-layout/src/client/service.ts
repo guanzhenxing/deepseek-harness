@@ -61,6 +61,18 @@ export interface ILayout {
    * @param px - requested companion width in px.
    */
   setWorkAreaCompanionWidth(id: string, px: number): void
+  /**
+   * Declare this active work area's actual minimum width in px — the floor
+   * the frame's concession solve keeps for the work-area column before
+   * details and the conversation companion are exhausted. Undeclared (and
+   * reset on open/close) it is the contract WORK_AREA_MIN; a work area that
+   * collapses itself to a thin strip may declare the smaller residual it
+   * really needs so the companion can take the freed width. Values are
+   * clamped to non-negative integers.
+   * @param id - work-area id that owns the declaration; inactive ids are ignored.
+   * @param px - minimum work-area width in px.
+   */
+  setWorkAreaReserve(id: string, px: number): void
 }
 
 /** Cross-plugin panel-action face (ctx.layout). */
@@ -142,6 +154,11 @@ export class LayoutController implements ILayout {
   /** Resize the companion only while this id remains active. */
   setWorkAreaCompanionWidth(id: string, px: number): void {
     this.#require().setWorkAreaCompanionWidth(id, px)
+  }
+
+  /** Declare the reserve only while this id remains active. */
+  setWorkAreaReserve(id: string, px: number): void {
+    this.#require().setWorkAreaReserve(id, px)
   }
 
   #require(): PanelActions {

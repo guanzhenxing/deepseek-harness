@@ -26,6 +26,7 @@ describe('createLayoutStore', () => {
       activeWorkArea: undefined,
       workAreaConversationVisible: false,
       workAreaSidebarVisible: false,
+      workAreaReserve: WORK_AREA_MIN,
       narrow: false,
       narrowExpanded: false,
     })
@@ -80,6 +81,34 @@ describe('createLayoutStore', () => {
     // the live viewport, so the preference stores the request verbatim.
     actions.setWorkAreaCompanionWidth('example.editor', 9999)
     expect(store.getSnapshot().companion).toBe(9999)
+  })
+
+  it('setWorkAreaReserve guards by id, clamps to a non-negative integer, and resets with the lifecycle', () => {
+    const { store, actions } = createLayoutStore().create()
+    actions.setWorkAreaReserve('example.editor', 128)
+    expect(store.getSnapshot().workAreaReserve).toBe(WORK_AREA_MIN)
+    actions.openWorkArea('example.editor', true)
+    actions.setWorkAreaReserve('stale.editor', 128)
+    expect(store.getSnapshot().workAreaReserve).toBe(WORK_AREA_MIN)
+    actions.setWorkAreaReserve('example.editor', 128)
+    expect(store.getSnapshot().workAreaReserve).toBe(128)
+    actions.setWorkAreaReserve('example.editor', -50)
+    expect(store.getSnapshot().workAreaReserve).toBe(0)
+    actions.setWorkAreaReserve('example.editor', 127.6)
+    expect(store.getSnapshot().workAreaReserve).toBe(128)
+    actions.setWorkAreaReserve('example.editor', 600)
+    actions.closeWorkArea('example.editor')
+    expect(store.getSnapshot().workAreaReserve).toBe(WORK_AREA_MIN)
+  })
+
+  it('switching work areas directly resets the reserve and stale ids cannot write it back', () => {
+    const { store, actions } = createLayoutStore().create()
+    actions.openWorkArea('a.editor', true)
+    actions.setWorkAreaReserve('a.editor', 128)
+    actions.openWorkArea('b.editor', true)
+    expect(store.getSnapshot().workAreaReserve).toBe(WORK_AREA_MIN)
+    actions.setWorkAreaReserve('a.editor', 128)
+    expect(store.getSnapshot().workAreaReserve).toBe(WORK_AREA_MIN)
   })
 
   it('toggleSidebar flips closed <-> contract default (drag width forgotten)', () => {
@@ -141,6 +170,7 @@ describe('createLayoutStore', () => {
       activeWorkArea: undefined,
       workAreaConversationVisible: false,
       workAreaSidebarVisible: false,
+      workAreaReserve: WORK_AREA_MIN,
       narrow: false,
       narrowExpanded: false,
     })
